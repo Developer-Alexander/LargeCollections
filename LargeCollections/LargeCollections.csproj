@@ -12,8 +12,10 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <Description>Offers interfaces and types for large collections that can store up to 4607183514018775041 items like arrays, lists, sets and dictionaries. (Many .NET standard collections are limited to about 2.1 billion items)
-This includes also thread-safe variants of these collection types.</Description>
+    <Description>Interfaces and types for large collections that can store up to 4607183514018775041 items like arrays, lists, sets and dictionaries. (Many .NET standard collections are limited to about 2.1 billion items)
+There are also thread-safe (concurrent) variants of the corresponding collection types.</Description>
+    <RepositoryUrl>https://github.com/Developer-Alexander/LargeCollections</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Developer-Alexander/LargeCollections</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
