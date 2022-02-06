@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Authors>Developer Alexander</Authors>
+    <Copyright>Developer Alexander</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>LargeCollection;LargeCollections;Large;Collection;Collections;LargeArray;LargeList;LargeSet;LargeDictionary;Array;List;Set;Dictionary;Concurrent;ConcurrentLargeArray;ConcurrentLargeList;ConcurrentLargeSet;ConcurrentLargeDictionary</PackageTags>
+    <NeutralLanguage>en</NeutralLanguage>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Description>Offers interfaces and types for large collections that can store up to 4607183514018775041 items like arrays, lists, sets and dictionaries. (Many .NET standard collections are limited to about 2.1 billion items)
+This includes also thread-safe variants of these collection types.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DefineConstants>$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DefineConstants>$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+</Project>
