@@ -1,6 +1,6 @@
-# Large Collections
+# What is LargeCollections?
 
-Large Collections is a library for .NET framework that offers a number of interfaces and types for collections that can store up to 4607183514018775041 items.
+LargeCollections is a library for .NET framework that offers a number of interfaces and types for collections that can store up to 4607183514018775041 items.
 In comparison many .NET standard collections are limited to about 2.1 billion items.
 There are also thread-safe (concurrent) variants of the corresponding collection types.
 
