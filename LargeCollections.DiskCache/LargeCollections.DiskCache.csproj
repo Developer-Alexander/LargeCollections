@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -11,9 +11,19 @@
     <PackageTags>LargeCollection;LargeCollections;Large;Collection;Collections;Dictionary;DiskCache;Cache;Disk;Sqlite;Spatial;Query</PackageTags>
     <NeutralLanguage>en</NeutralLanguage>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Description>Dictionary-like collections that allow to limit the amount of memory (RAM) in MB that will be used. Any memory requirement that exceeds this amount is automatically swapped out to disk. Additionally it offers multi-threaded operations for performance improvements.</Description>
+    <Description>Dictionary-like collections that allow to limit the amount of memory (RAM) in MB that will be used. Any memory requirement that exceeds this amount is automatically swapped out to disk. Additionally it offers multi-threaded operations for performance improvements.
+
+Note: Pooling in Microsoft.Data.Sqlite version 6.x may can cause crashes or memory budget overruns. If possible usage of Microsoft.Data.Sqlite 5.0.13 is recommended.</Description>
     <PackageProjectUrl>https://github.com/Developer-Alexander/LargeCollections</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.13" />
