@@ -27,6 +27,7 @@ SOFTWARE.
 using NUnit.Framework;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace LargeCollections.Test
@@ -36,10 +37,23 @@ namespace LargeCollections.Test
         private static long[] _capacities = new long[]
         {
             0L,
-            LargeCollectionsConstants.MaxStandardArrayCapacity / 2L,
-            LargeCollectionsConstants.MaxStandardArrayCapacity,
-            5L * LargeCollectionsConstants.MaxStandardArrayCapacity,
-            LargeCollectionsConstants.MaxStandardArrayCapacity * LargeCollectionsConstants.MaxStandardArrayCapacity
+            5L,
+            10L,
+            30L,
+
+            /* Running tests with following capacities requires a lot of time and memory */
+
+            //LargeCollectionsConstants.MaxStandardArrayCapacity / 2L,
+            //LargeCollectionsConstants.MaxStandardArrayCapacity,
+            //2L * LargeCollectionsConstants.MaxStandardArrayCapacity,
+            //3L * LargeCollectionsConstants.MaxStandardArrayCapacity
+        };
+
+        private static long[] _offsets = new long[]
+        {
+            0L,
+            1L,
+            2L,
         };
 
         public static IEnumerable CapacitiesTestCasesArguments
@@ -57,97 +71,166 @@ namespace LargeCollections.Test
             }
         }
 
+        public static IEnumerable CapacitiesWithOffsetTestCasesArguments
+        {
+            get
+            {
+                foreach (long capacity in _capacities)
+                {
+                    foreach (long offset in _offsets)
+                    {
+                        yield return new TestCaseData(capacity - 2L, offset);
+                        yield return new TestCaseData(capacity - 1L, offset);
+                        yield return new TestCaseData(capacity, offset);
+                        yield return new TestCaseData(capacity + 1L, offset);
+                        yield return new TestCaseData(capacity + 2L, offset);
+                    }
+                }
+            }
+        }
+
         [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesTestCasesArguments))]
         public void Create(long capacity)
         {
             LargeArray<long> largeArray;
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
-                Assert.Throws<ArgumentOutOfRangeException>(() => largeArray = new(capacity));
+                Assert.Throws<ArgumentOutOfRangeException>(() => largeArray = new LargeArray<long>(capacity));
                 return;
             }
 
-            largeArray = new(capacity);
+            largeArray = new LargeArray<long>(capacity);
             Assert.AreEqual(capacity, largeArray.Count);
         }
 
-        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesTestCasesArguments))]
-        public void SetGetContains(long capacity)
+        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesWithOffsetTestCasesArguments))]
+        public void SetGet(long capacity, long offset)
         {
+            // input check
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeArray<long> largeArray = new(capacity);
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            SetGetTest(largeArray, offset);
+        }
+
+        public static void SetGetTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
             }
 
+            // verify ascending order
             for (long i = 0; i < capacity; i++)
             {
-                Assert.AreEqual(i, largeArray[i]);
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
             }
-
-            if (capacity == 0L)
-            {
-                Assert.IsFalse(largeArray.Contains(0));
-                Assert.IsFalse(largeArray.Contains(capacity - 1L));
-                Assert.IsFalse(largeArray.Contains(capacity / 2L));
-            }
-            else
-            {
-                Assert.IsTrue(largeArray.Contains(0));
-                Assert.IsTrue(largeArray.Contains(capacity - 1L));
-                Assert.IsTrue(largeArray.Contains(capacity / 2L));
-            }
-
 
             long dummy = 0L;
             Assert.Throws<IndexOutOfRangeException>(() => dummy = largeArray[-1]);
             Assert.Throws<IndexOutOfRangeException>(() => dummy = largeArray[capacity]);
             Assert.Throws<IndexOutOfRangeException>(() => dummy = largeArray[capacity + 1L]);
-
-            Assert.IsFalse(largeArray.Contains(-1));
-            Assert.IsFalse(largeArray.Contains(capacity));
-            Assert.IsFalse(largeArray.Contains(capacity + 1L));
-            Assert.IsFalse(largeArray.Contains(capacity * 2L));
         }
 
-        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesTestCasesArguments))]
-        public void Enumeration(long capacity)
+        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesWithOffsetTestCasesArguments))]
+        public void Enumeration(long capacity, long offset)
         {
+            // input check
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeArray<long> largeArray = new(capacity);
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            EnumerationTest(largeArray, offset);
+        }
+
+        public static void EnumerationTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(-1L, count).FirstOrDefault());
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(0L, -1L).FirstOrDefault());
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(1L, capacity).FirstOrDefault());
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
             }
 
-            CollectionAssert.AreEqual(largeArray, LargeEnumerable.Range(capacity));
+            // verify ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
 
+            // GetAll
+            CollectionAssert.AreEqual(LargeEnumerable.Range(capacity), largeArray);
+
+            // Ranged GetAll
+            CollectionAssert.AreEqual(LargeEnumerable.Range(offset, offset + count), largeArray.GetAll(offset, count));
+
+            // DoForEach
             long currentIToCompareWith = 0L;
             largeArray.DoForEach(i =>
             {
-                Assert.AreEqual(i, currentIToCompareWith);
+                Assert.AreEqual(currentIToCompareWith, i);
                 currentIToCompareWith++;
             });
+
+            // offset must not be less than 0
+            // enumerable needs to be enumerated to throw the exception
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(-1L, count).FirstOrDefault());
+
+            // count must not be less than 0
+            // enumerable needs to be enumerated to throw the exception
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(0L, -1L).FirstOrDefault());
+
+            // range must not exceed
+            // enumerable needs to be enumerated to throw the exception
+            Assert.Throws<ArgumentException>(() => largeArray.GetAll(1L, capacity).FirstOrDefault());
         }
 
         [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesTestCasesArguments))]
         public void Resize(long capacity)
         {
+            // input check
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeArray<long> largeArray = new(capacity);
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            // create array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
@@ -176,41 +259,222 @@ namespace LargeCollections.Test
             Assert.Throws<ArgumentOutOfRangeException>(() => largeArray.Resize(LargeCollectionsConstants.MaxLargeCollectionCount + 1L));
         }
 
-        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesTestCasesArguments))]
-        public void SortBinarySearch(long capacity)
+        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesWithOffsetTestCasesArguments))]
+        public void Sort(long capacity, long offset)
         {
+            // input check
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeArray<long> largeArray = new(capacity);
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            SortTest(largeArray, offset);
+        }
+
+        public static void SortTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+            Comparer<long> comparer = Comparer<long>.Default;
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Sort(-1L, count, comparer));
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Sort(0L, -1L, comparer));
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.Sort(1L, capacity, comparer));
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create array with descending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = capacity - 1L - i;
             }
 
-            long currentIToCompareWith = capacity - 1L;
-            largeArray.DoForEach(i =>
-            {
-                Assert.AreEqual(i, currentIToCompareWith);
-                currentIToCompareWith--;
-            });
-
-            largeArray.Sort();
-
-            currentIToCompareWith = 0L;
-            largeArray.DoForEach(i =>
-            {
-                Assert.AreEqual(i, currentIToCompareWith);
-                currentIToCompareWith++;
-            });
-
+            // verify descending order
             for (long i = 0; i < capacity; i++)
             {
-                long index = largeArray.BinarySearch(i);
-                Assert.AreEqual(i, index);
+                long expectedValue = capacity - 1L - i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
             }
+
+            // Sort
+            largeArray.Sort(offset, count, comparer);
+
+            // verify ascending order after sort
+            for (long i = 0; i < offset; i++)
+            {
+                long expectedValue = capacity - 1L - i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
+            for (long i = offset; i < offset + count; i++)
+            {
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
+            for (long i = offset + count; i < capacity; i++)
+            {
+                long expectedValue = capacity - 1L - i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
+        }
+
+        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesWithOffsetTestCasesArguments))]
+        public void BinarySearch(long capacity, long offset)
+        {
+            // input check
+            if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
+            {
+                return;
+            }
+
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            BinarySearchTest(largeArray, offset);
+        }
+
+        public static void BinarySearchTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+            Comparer<long> comparer = Comparer<long>.Default;
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, -1L, count, comparer));
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, 0L, -1L, comparer));
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, 1L, capacity, comparer));
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create array with ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                largeArray[i] = i;
+            }
+
+            // verify ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
+
+            // Binary Search
+            for (long i = 0; i < offset; i++)
+            {
+                long index = largeArray.BinarySearch(i, offset, count, comparer);
+
+                long expectedValue = -1L;
+                Assert.AreEqual(expectedValue, index);
+            }
+            for (long i = offset; i < offset + count; i++)
+            {
+                long index = largeArray.BinarySearch(i, offset, count, comparer);
+
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, index);
+            }
+            for (long i = offset + count; i < capacity; i++)
+            {
+                long index = largeArray.BinarySearch(i, offset, count, comparer);
+
+                long expectedValue = -1L;
+                Assert.AreEqual(expectedValue, index);
+            }
+
+            // capacity must not be contained
+            Assert.AreEqual(-1, largeArray.BinarySearch(capacity, comparer));
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, -1L, count, comparer));
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, 0L, -1L, comparer));
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.BinarySearch(0L, 1L, capacity, comparer));
+        }
+
+        [TestCaseSource(typeof(LargeArrayTest), nameof(CapacitiesWithOffsetTestCasesArguments))]
+        public void Contains(long capacity, long offset)
+        {
+            // input check
+            if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
+            {
+                return;
+            }
+
+            LargeArray<long> largeArray = new LargeArray<long>(capacity);
+
+            ContainsTest(largeArray, offset);
+        }
+
+        public static void ContainsTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, -1L, count));
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, 0L, -1L));
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, 1L, capacity));
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create array with ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                largeArray[i] = i;
+            }
+
+            // Verify ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeArray[i]);
+            }
+
+            // Contains
+            for (long i = 0; i < offset; i++)
+            {
+                bool result = largeArray.Contains(i, offset, count);
+                Assert.AreEqual(false, result);
+            }
+            for (long i = offset; i < offset + count; i++)
+            {
+                bool result = largeArray.Contains(i, offset, count);
+                Assert.AreEqual(true, result);
+            }
+            for (long i = offset + count; i < capacity; i++)
+            {
+                bool result = largeArray.Contains(i, offset, count);
+                Assert.AreEqual(false, result);
+            }
+
+            // capacity must not be contained
+            Assert.AreEqual(false, largeArray.Contains(capacity));
         }
     }
 }

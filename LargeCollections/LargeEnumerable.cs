@@ -49,7 +49,7 @@ namespace LargeCollections
             }
             else
             {
-                for (long i = start; i > end; i -= step)
+                for (long i = start; i > end; i += step)
                 {
                     yield return i;
                 }

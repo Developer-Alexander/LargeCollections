@@ -43,6 +43,7 @@ namespace LargeCollections
     /// Type of key is limited to <see cref="long"/>.
     /// Items may have a <see cref="BoundingBox"/> which allows spatial queries.
     /// </summary>
+    [DebuggerDisplay("SpatialDiskCache")]
     public class SpatialDiskCache<TValue> : DiskCache<long, TValue>, ISpatialDiskCache<TValue>
     {
         protected SqliteCommand[] _upsertSpatialIndexCommands;

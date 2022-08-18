@@ -29,14 +29,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace LargeCollections
 {
     /// <summary>
     /// This is a thread-safe version of <see cref="LargeDictionary{TKey, TValue}"/>.
     /// </summary>
-    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerDisplay("ConcurrentLargeDictionary:Count = {Count}")]
     public class ConcurrentLargeDictionary<TKey, TValue> : ILargeDictionary<TKey, TValue>
     {
         protected LargeDictionary<TKey, TValue> _storage;
@@ -51,6 +50,28 @@ namespace LargeCollections
             double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
         {
             _storage = new LargeDictionary<TKey, TValue>(comparer,
+                  capacity,
+                  capacityGrowFactor,
+                  fixedCapacityGrowAmount,
+                  fixedCapacityGrowLimit,
+                  minLoadFactor,
+                  maxLoadFactor,
+                  minLoadFactorTolerance);
+        }
+
+        public ConcurrentLargeDictionary(
+            IEnumerable<KeyValuePair<TKey, TValue>> items,
+            Comparer<TKey> comparer = null,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
+            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
+            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor,
+            double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
+        {
+            _storage = new LargeDictionary<TKey, TValue>(items,
+                comparer,
                   capacity,
                   capacityGrowFactor,
                   fixedCapacityGrowAmount,

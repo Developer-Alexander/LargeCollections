@@ -47,5 +47,42 @@ namespace LargeCollections
             largeSet.Add(items);
             return largeSet;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static IEnumerable<T> Skip<T>(this IEnumerable<T> items, long count)
+        {
+            long currentCount = 0L;
+
+            foreach (T item in items)
+            {
+                if(currentCount > count)
+                {
+                    yield return item;
+                }
+                else
+                {
+                    currentCount++;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static IEnumerable<T> Take<T>(this IEnumerable<T> items, long count)
+        {
+            long currentCount = 0L;
+
+            foreach (T item in items)
+            {
+                if(currentCount < count)
+                {
+                    yield return item;
+                    currentCount++;
+                }
+                else
+                {
+                    yield break;
+                }
+            }
+        }
     }
 }

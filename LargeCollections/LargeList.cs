@@ -31,7 +31,11 @@ using System.Runtime.CompilerServices;
 
 namespace LargeCollections
 {
-    [DebuggerDisplay("Count = {Count}")]
+    /// <summary>
+    /// A mutable list of <typeparamref name="T"/> that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
+    /// Lists allow index based access to the elements.
+    /// </summary>
+    [DebuggerDisplay("LargeList: Count = {Count}")]
     public class LargeList<T> : ILargeList<T>
     {
         protected static readonly Comparer<T> _comparer = Comparer<T>.Default;
@@ -44,6 +48,7 @@ namespace LargeCollections
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             protected set;
         }
+
         public long FixedCapacityGrowAmount 
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -51,6 +56,7 @@ namespace LargeCollections
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             protected set;
         }
+
         public long FixedCapacityGrowLimit 
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -59,11 +65,12 @@ namespace LargeCollections
             protected set;
         }
 
-        protected long _count;
         public long Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _count;
+            get;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            protected set;
         }
 
         public long Capacity
@@ -96,13 +103,24 @@ namespace LargeCollections
 
             _storage = new LargeArray<T>(capacity);
 
-            _count = 0L;
+            Count = 0L;
 
             CapacityGrowFactor = capacityGrowFactor;
 
             FixedCapacityGrowAmount = fixedCapacityGrowAmount;
 
             FixedCapacityGrowLimit = fixedCapacityGrowLimit;
+        }
+
+        public LargeList(IEnumerable<T> items,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
+            
+            :this(capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit)
+        {
+            Add(items);
         }
 
         public T this[long index]
@@ -122,20 +140,20 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(T item)
         {
-            if (_count == LargeCollectionsConstants.MaxLargeCollectionCount)
+            if (Count == LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 throw new InvalidOperationException($"Can not store more than {LargeCollectionsConstants.MaxLargeCollectionCount} items.");
             }
 
-            if (_count >= Capacity)
+            if (Count >= Capacity)
             {
                 long newCapacity = GetGrownCapacity(Capacity, CapacityGrowFactor, FixedCapacityGrowAmount, FixedCapacityGrowLimit);
 
                 _storage.Resize(newCapacity);
             }
 
-            _storage[_count] = item;
-            _count++;
+            _storage[Count] = item;
+            Count++;
         }
 
 
@@ -151,32 +169,35 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
-            for (long i = 0L; i < _count; i++)
+            for (long i = 0L; i < Count; i++)
             {
                 _storage[i] = default(T);
             }
 
-            _count = 0L;
+            Count = 0L;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item)
         {
-            for (long i = 0L; i < _count; i++)
-            {
-                if (_comparer.Compare(_storage[i], item) == 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return _storage.Contains(item, 0L, Count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(T item, long offset, long count)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            return _storage.Contains(item, offset, count);
+
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(long index)
         {
-            if (index < 0L || index >= _count)
+            if (index < 0L || index >= Count)
             {
                 throw new IndexOutOfRangeException(nameof(index));
             }
@@ -187,9 +208,23 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerable<T> GetAll()
         {
-            for (long i = 0L; i < _count; i++)
+            for (long i = 0L; i < Count; i++)
             {
                 yield return _storage[i];
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IEnumerable<T> GetAll(long offset, long count)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            for (long i = 0L; i < count; i++)
+            {
+                yield return _storage[offset + i];
             }
         }
 
@@ -198,7 +233,7 @@ namespace LargeCollections
         {
             long shiftCount = 0L;
 
-            for (long i = 0L; i < _count; i++)
+            for (long i = 0L; i < Count; i++)
             {
                 if (_comparer.Compare(_storage[i], item) == 0 && shiftCount == 0)
                 {
@@ -222,24 +257,24 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveAt(long index)
         {
-            if (index < 0L || index >= _count)
+            if (index < 0L || index >= Count)
             {
                 throw new IndexOutOfRangeException(nameof(index));
             }
 
-            for (long i = index; i < _count - 1L; i++)
+            for (long i = index; i < Count - 1L; i++)
             {
                 _storage[i] = _storage[i + 1L];
             }
 
-            _storage[_count - 1L] = default(T);
-            _count--;
+            _storage[Count - 1L] = default(T);
+            Count--;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set(long index, T item)
         {
-            if (index < 0L || index >= _count)
+            if (index < 0L || index >= Count)
             {
                 throw new IndexOutOfRangeException(nameof(index));
             }
@@ -250,7 +285,7 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Shrink()
         {
-            _storage.Resize(_count);
+            _storage.Resize(Count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -262,7 +297,7 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return GetEnumerator();
+            return GetAll().GetEnumerator();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -293,19 +328,52 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DoForEach(Action<T> action)
         {
-            _storage.PartialDoForEach(action, _count);
+            _storage.DoForEach(0L, Count, action);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DoForEach(long offset, long count, Action<T> action)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            _storage.DoForEach(offset, count, action);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Sort(Comparer<T> comparer = null)
         {
-            _storage.PartialSort(comparer, _count);
+            _storage.Sort(0L, Count, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Sort(long offset, long count, Comparer<T> comparer = null)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            _storage.Sort(offset, count, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long BinarySearch(T item, Comparer<T> comparer = null)
         {
-            return _storage.PartialBinarySearch(item, comparer, _count);
+            return _storage.BinarySearch(item, 0L, Count, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            return _storage.BinarySearch(item, offset, count, comparer);
         }
     }
 }

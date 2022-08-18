@@ -23,46 +23,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
+
+using System.Runtime.CompilerServices;
 
 namespace LargeCollections
 {
-
-    [DebuggerDisplay("BoundingBox: MinX = {MinX}, MaxX = {MaxX}, MinY = {MinY}, MaxY = {MaxY}")]
-    public struct BoundingBox
+    public static class LargeCollectionsExtensions
     {
-        public double MinX;
-        public double MaxX;
-        public double MinY;
-        public double MaxY;
-
-        public BoundingBox(double minX, double maxX, double minY, double maxY)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlyLargeSpan<T> ToReadOnlyLargeSpan<T>(this IReadOnlyLargeArray<T> items, long offset, long count)
         {
-            MinX = minX;
-            MaxX = maxX;
-            MinY = minY;
-            MaxY = maxY;
+            ReadOnlyLargeSpan<T> largeSpan = new ReadOnlyLargeSpan<T>(items, offset, count);
+            return largeSpan;
         }
 
-        public bool Interset(BoundingBox otherBoundingBox)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static LargeSpan<T> ToLargeSpan<T>(this ILargeArray<T> items, long offset, long count)
         {
-            if (otherBoundingBox.MaxX < MinX
-                || otherBoundingBox.MinX > MaxX
-                || otherBoundingBox.MaxY < MinY
-                || otherBoundingBox.MinY > MaxY)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        public override string ToString()
-        {
-            return $"Min: ({MinX}; {MinY}); Max: ({MaxX}; {MaxY})";
+            LargeSpan<T> largeSpan = new LargeSpan<T>(items, offset, count);
+            return largeSpan;
         }
     }
 }

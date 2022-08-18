@@ -33,7 +33,11 @@ using System.Text;
 
 namespace LargeCollections
 {
-    [DebuggerDisplay("Count = {Count}")]
+    /// <summary>
+    /// A mutable dictionary of <typeparamref name="TKey"/> as key and <typeparamref name="TValue"/> as value that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
+    /// Dictionaries are hash based.
+    /// </summary>
+    [DebuggerDisplay("LargeDictionary: Count = {Count}")]
     public class LargeDictionary<TKey, TValue> : LargeSet<KeyValuePair<TKey, TValue>>, ILargeDictionary<TKey, TValue>
     {
         public class KeyOnlyComparer : Comparer<KeyValuePair<TKey, TValue>>
@@ -71,6 +75,28 @@ namespace LargeCollections
                   minLoadFactorTolerance)
         {
             _hashCodeFunction = (KeyValuePair<TKey, TValue> item) => item.Key.GetHashCode();
+        }
+
+        public LargeDictionary(IEnumerable<KeyValuePair<TKey, TValue>> items,
+            Comparer<TKey> comparer = null,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
+            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
+            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor,
+            double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
+
+            : this(comparer,
+                  capacity,
+                  capacityGrowFactor,
+                  fixedCapacityGrowAmount,
+                  fixedCapacityGrowLimit,
+                  minLoadFactor,
+                  maxLoadFactor,
+                  minLoadFactorTolerance)
+        {
+            Add(items);
         }
 
         public IEnumerable<TKey> Keys

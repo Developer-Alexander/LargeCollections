@@ -44,6 +44,7 @@ namespace LargeCollections
     /// it will have a performance benefit due to a specialized implementaion.
     /// If other types are used functions for serialization and deserialization must be provided so that keys and/or values can be stored on disk if needed.
     /// </summary>
+    [DebuggerDisplay("DiskCache")]
     public class DiskCache<TKey, TValue> : IDiskCache<TKey, TValue>, IDisposable
     {
         public long MaxMemorySize 

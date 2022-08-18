@@ -9,6 +9,8 @@ Currently supported collections are:
 - LargeList<T>
 - LargeSet<T>
 - LargeDictionary<TKey, TValue>
+- ReadOnlyLargeSpan<T>
+- LargeSpan<T>
 - ConcurrentLargeArray<T>
 - ConcurrentLargeList<T>
 - ConcurrentLargeSet<T>

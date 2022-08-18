@@ -48,11 +48,11 @@ namespace LargeCollections
         /// <summary>
         /// Returns all items of the collection as an <see cref="IEnumerable{T}"/>.
         /// </summary>
-        /// <returns></returns>
+        /// <returns><see cref="IEnumerable{T}"/></returns>
         IEnumerable<T> GetAll();
 
         /// <summary>
-        /// Applies the provided <paramref name="action"/> to all items of the collection.
+        /// Performs the <paramref name="action"/> with items of the collection.
         /// Depending on the actual collection implementation (i.e. <see cref="LargeArray{T}"/>) this may be significantly faster than iterating over all elements in a foreach-loop.
         /// </summary>
         /// <param name="action">The function that that will be called for each item of the collection.</param>
@@ -119,6 +119,45 @@ namespace LargeCollections
         /// If the <paramref name="item"/> could not be found a negative number will be returned.
         /// If the specified <paramref name="item"/> is not unique within the collection only one of the potential candidates will be returned.</returns>
         long BinarySearch(T item, Comparer<T> comparer);
+
+        /// <summary>
+        /// Performs a binary search to find the index at which the <paramref name="item"/> is located within the given range defined by <paramref name="offset"/> and <paramref name="count"/>.
+        /// The collection must be sorted in ascending order according to <paramref name="comparer"/>. Otherwise you will get undefined results.
+        /// </summary>
+        /// <param name="item">The <paramref name="item"/> whose location shall be found.</param>
+        /// <param name="offset">The <paramref name="offset"/> where the range starts.</param>
+        /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
+        /// <param name="comparer">The <paramref name="comparer"/> whose <see cref="Comparer{T}.Compare(T, T)"/> function will be used to compare the items of the collection.</param>
+        /// <returns>The 0-based index of the <paramref name="item"/> if it was found.
+        /// If the <paramref name="item"/> could not be found a negative number will be returned.
+        /// If the specified <paramref name="item"/> is not unique within the collection only one of the potential candidates will be returned.</returns>
+        long BinarySearch(T item, long offset, long count, Comparer<T> comparer);
+
+        /// <summary>
+        /// Returns all items of the collection as an <see cref="IEnumerable{T}"/> within the given range defined by <paramref name="offset"/> and <paramref name="count"/>.
+        /// </summary>
+        /// <param name="offset">The <paramref name="offset"/> where the range starts.</param>
+        /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
+        /// <returns><see cref="IEnumerable{T}"/></returns>
+        IEnumerable<T> GetAll(long offset, long count);
+
+        /// <summary>
+        /// Determines whether the collection contains a specific <paramref name="item"/> within the given range defined by <paramref name="offset"/> and <paramref name="count"/>.
+        /// </summary>
+        /// <param name="item">The item that shall be found.</param>
+        /// <param name="offset">The <paramref name="offset"/> where the range starts.</param>
+        /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
+        /// <returns>true if the <paramref name="item"/> is present within the collection. Otherwise false is returned.</returns>
+        bool Contains(T item, long offset, long count);
+
+        /// <summary>
+        /// Performs the <paramref name="action"/> with items of the collection within the given range defined by <paramref name="offset"/> and <paramref name="count"/>.
+        /// Depending on the actual collection implementation (i.e. <see cref="LargeArray{T}"/>) this may be significantly faster than iterating over all elements in a foreach-loop.
+        /// </summary>
+        /// <param name="offset">The <paramref name="offset"/> where the range starts.</param>
+        /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
+        /// <param name="action">The function that that will be called for each item of the collection.</param>
+        void DoForEach(long offset, long count, Action<T> action);
     }
 
     public interface ILargeArray<T> : IReadOnlyLargeArray<T>
@@ -142,6 +181,14 @@ namespace LargeCollections
         /// </summary>
         /// <param name="comparer">The <paramref name="comparer"/> whose <see cref="Comparer{T}.Compare(T, T)"/> function will be used to compare the items of the collection.</param>
         void Sort(Comparer<T> comparer);
+
+        /// <summary>
+        /// Reorders the items of the collection within the given range defined by <paramref name="offset"/> and <paramref name="count"/> in ascending order according to <paramref name="comparer"/>.
+        /// </summary>
+        /// <param name="offset">The <paramref name="offset"/> where the range starts.</param>
+        /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
+        /// <param name="comparer">The <paramref name="comparer"/> whose <see cref="Comparer{T}.Compare(T, T)"/> function will be used to compare the items of the collection.</param>
+        void Sort(long offset, long count, Comparer<T> comparer);
     }
 
     public interface ILargeList<T> : ILargeArray<T>, ILargeCollection<T>

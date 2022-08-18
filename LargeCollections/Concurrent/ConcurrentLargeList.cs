@@ -28,14 +28,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace LargeCollections
 {
     /// <summary>
     /// This is a thread-safe version of <see cref="LargeList{T}"/>.
     /// </summary>
-    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerDisplay("ConcurrentLargeList: Count = {Count}")]
     public class ConcurrentLargeList<T> : ILargeList<T>
     {
         protected LargeList<T> _storage;
@@ -46,6 +45,15 @@ namespace LargeCollections
             long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
         {
             _storage = new LargeList<T>(capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit);
+        }
+
+        public ConcurrentLargeList(IEnumerable<T> items,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
+        {
+            _storage = new LargeList<T>(items, capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit);
         }
 
         public T this[long index] 
@@ -111,11 +119,29 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(T item, long offset, long count)
+        {
+            lock (_storage)
+            {
+                return _storage.Contains(item, offset, count);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DoForEach(Action<T> action)
         {
             lock (_storage)
             {
                 _storage.DoForEach(action);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DoForEach(long offset, long count, Action<T> action)
+        {
+            lock (_storage)
+            {
+                _storage.DoForEach(offset, count, action);
             }
         }
 
@@ -134,6 +160,18 @@ namespace LargeCollections
             lock (_storage)
             {
                 foreach (T item in _storage)
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IEnumerable<T> GetAll(long offset, long count)
+        {
+            lock (_storage)
+            {
+                foreach (T item in _storage.GetAll(offset, count))
                 {
                     yield return item;
                 }
@@ -198,7 +236,7 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(Comparer<T> comparer)
+        public void Sort(Comparer<T> comparer = null)
         {
             lock (_storage)
             {
@@ -207,11 +245,29 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long BinarySearch(T item, Comparer<T> comparer)
+        public void Sort(long offset, long count, Comparer<T> comparer = null)
+        {
+            lock (_storage)
+            {
+                _storage.Sort(offset, count, comparer);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long BinarySearch(T item, Comparer<T> comparer = null)
         {
             lock (_storage)
             {
                 return _storage.BinarySearch(item, comparer);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer = null)
+        {
+            lock (_storage)
+            {
+                return _storage.BinarySearch(item, offset, count, comparer);
             }
         }
     }

@@ -32,18 +32,23 @@ using System.Diagnostics;
 
 namespace LargeCollections
 {
-    [DebuggerDisplay("Count = {Count}")]
+    /// <summary>
+    /// A mutable array of <typeparamref name="T"/> that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
+    /// Arrays allow index based access to the elements.
+    /// </summary>
+    [DebuggerDisplay("LargeArray: Count = {Count}")]
     public class LargeArray<T> : ILargeArray<T>
     {
         protected static readonly Comparer<T> _comparer = Comparer<T>.Default;
 
         protected T[][] _storage;
 
-        protected long _count;
         public long Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _count;
+            get;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            protected set;
         }
 
         public LargeArray(long capacity = 0L)
@@ -64,7 +69,7 @@ namespace LargeCollections
             }
             _storage[storageCount - 1L] = new T[remainder];
 
-            _count = capacity;
+            Count = capacity;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -75,7 +80,7 @@ namespace LargeCollections
                 throw new ArgumentOutOfRangeException(nameof(capacity));
             }
 
-            if (capacity == _count)
+            if (capacity == Count)
             {
                 return;
             }
@@ -85,7 +90,7 @@ namespace LargeCollections
 
             T[][] newStorage = new T[storageCount][];
 
-            if (capacity < _count)
+            if (capacity < Count)
             {
                 for (long i = 0; i < storageCount - 1L; i++)
                 {
@@ -126,7 +131,7 @@ namespace LargeCollections
             }
 
             _storage = newStorage;
-            _count = capacity;
+            Count = capacity;
         }
         public T this[long index] 
         {
@@ -145,24 +150,54 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item)
         {
-            for (long i = 0L; i < _storage.LongLength; i++)
+            return Contains(item, 0L, Count);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(T item, long offset, long count)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            if(count == 0L)
+            {
+                return false;
+            }
+
+            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+
+            long currentCount = 0L;
+
+            for (long i = storageIndex; i < _storage.LongLength; i++)
             {
                 T[] currentStorage = _storage[i];
-                for (long j = 0L; j < currentStorage.LongLength; j++)
+                for (long j = itemIndex; j < currentStorage.LongLength; j++)
                 {
-                    if (_comparer.Compare(currentStorage[j], item) == 0)
+                    if (currentCount < count)
                     {
-                        return true;
+                        if (_comparer.Compare(currentStorage[j], item) == 0)
+                        {
+                            return true;
+                        }
+                        currentCount++;
+                    }
+                    else
+                    {
+                        return false;
                     }
                 }
             }
+
             return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(long index)
         {
-            if(index < 0L || index >= _count)
+            if(index < 0L || index >= Count)
             {
                 throw new IndexOutOfRangeException();
             }
@@ -187,6 +222,42 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IEnumerable<T> GetAll(long offset, long count)
+        {
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            if(count == 0L)
+            {
+                yield break;
+            }
+
+            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+
+            long currentCount = 0L;
+
+            for (long i = storageIndex; i < _storage.LongLength; i++)
+            {
+                T[] currentStorage = _storage[i];
+                for (long j = itemIndex; j < currentStorage.LongLength; j++)
+                {
+                    if (currentCount < count)
+                    {
+                        yield return currentStorage[j];
+                        currentCount++;
+                    }
+                    else
+                    {
+                        yield break;
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerator<T> GetEnumerator()
         {
             return GetAll().GetEnumerator();
@@ -196,7 +267,7 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set(long index, T item)
         {
-            if (index < 0L || index >= _count)
+            if (index < 0L || index >= Count)
             {
                 throw new IndexOutOfRangeException();
             }
@@ -216,45 +287,41 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DoForEach(Action<T> action)
         {
-            if(action == null)
-            {
-                return;
-            }
-
-            for (long i = 0L; i < _storage.LongLength; i++)
-            {
-                T[] currentStorage = _storage[i];
-                for (long j = 0L; j < currentStorage.LongLength; j++)
-                {
-                    action(currentStorage[j]);
-                }
-            }
+            DoForEach(0L, Count, action);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PartialDoForEach(Action<T> action, long count = 0L)
+        public void DoForEach(long offset, long count, Action<T> action)
         {
             if (action == null)
             {
                 return;
             }
-
-            if (count < 0L || count > _count)
+            if (offset < 0L || count < 0L || offset + count > Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(count));
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+            if(count == 0L)
+            {
+                return;
             }
 
-            count = count > 0 ? count : _count;
-            long index = 0L;
+            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
 
-            for (long i = 0L; i < _storage.LongLength; i++)
+            long currentCount = 0L;
+
+            for (long i = storageIndex; i < _storage.LongLength; i++)
             {
                 T[] currentStorage = _storage[i];
-                for (long j = 0L; j < currentStorage.LongLength; j++)
+                for (long j = itemIndex; j < currentStorage.LongLength; j++)
                 {
-                    action(currentStorage[j]);
-                    index++;
-                    if(index >= count)
+                    if(currentCount < count)
+                    {
+                        action(currentStorage[j]);
+                        currentCount++;
+                    }
+                    else
                     {
                         return;
                     }
@@ -263,18 +330,18 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void Heapify(long i, long count, Comparer<T> comparer)
+        protected void Heapify(long i, long left, long right, Comparer<T> comparer)
         {
             long maxIndex = i;
-            long leftIndex = 2L * i + 1L;
-            long rightIndex = 2L * i + 2L;
+            long leftIndex = left + (2L * (i - left)) + 1L;
+            long rightIndex = left + (2L * (i - left)) + 2L;
 
-            if (leftIndex <= count && comparer.Compare(this[maxIndex], this[leftIndex]) < 0)
+            if (leftIndex <= right && comparer.Compare(this[maxIndex], this[leftIndex]) < 0)
             {
                 maxIndex = leftIndex;
             }
 
-            if (rightIndex <= count && comparer.Compare(this[maxIndex], this[rightIndex]) < 0)
+            if (rightIndex <= right && comparer.Compare(this[maxIndex], this[rightIndex]) < 0)
             {
                 maxIndex = rightIndex;
             }
@@ -285,87 +352,99 @@ namespace LargeCollections
                 this[i] = this[maxIndex];
                 this[maxIndex] = swapItem;
 
-                Heapify(maxIndex, count, comparer);
+                Heapify(maxIndex, left, right, comparer);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Sort(Comparer<T> comparer = null)
         {
-            PartialSort(comparer, _count);
+            Sort(0L, Count, comparer);
         }
 
+        //TODO Fix
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PartialSort(Comparer<T> comparer = null, long count = 0)
+        public void Sort(long offset, long count, Comparer<T> comparer = null)
         {
-            if (_count <= 1L)
+            if (offset < 0L || count < 0L || offset + count > Count)
+            {
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            if (count <= 1L)
             {
                 return;
             }
 
-            if (count < 0L || count > _count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count));
-            }
-
             Comparer<T> effectiveComparer = comparer ?? _comparer;
-            count = count > 0 ? count : _count;
 
-            for (long i = count / 2L; i >= 0L; i--)
+            long left = offset;
+            long mid = (offset + count) / 2L;
+            long right = (offset + count) - 1L;
+
+            for (long i = mid; i >= left; i--)
             {
-                Heapify(i, count - 1L, effectiveComparer);
+                Heapify(i, left, right, effectiveComparer);
             }
 
-            for (long i = count - 1L; i >= 0L; i--)
+            for (long i = right; i >= left; i--)
             {
-                T swapItem = this[0];
-                this[0] = this[i];
+                T swapItem = this[left];
+                this[left] = this[i];
                 this[i] = swapItem;
 
-                Heapify(0, i - 1L, effectiveComparer);
+                Heapify(left, left, i - 1L, effectiveComparer);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long BinarySearch(T item, Comparer<T> comparer = null)
         {
-            return PartialBinarySearch(item, comparer, _count);
+            return BinarySearch(item, 0L, Count, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long PartialBinarySearch(T item, Comparer<T> comparer = null, long count = 0)
+        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer = null)
         {
-            if (count < 0L || count > _count)
+            if (offset < 0L || count < 0L || offset + count > Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(count));
+                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
+            }
+
+            if(count == 0L)
+            {
+                return -1;
             }
 
             Comparer<T> effectiveComparer = comparer ?? _comparer;
-            count = count > 0 ? count : _count;
 
-            long left = 0L;
-            long mid = 0L;
-            long right = count - 1L;
+            long left = offset;
+            long mid = offset;
+            long right = offset + count - 1L;
             int compareResult = 0;
 
             while (right >= left)
             {
                 mid = (right + left) / 2;
 
-                compareResult = effectiveComparer.Compare(item, this[mid]);
+                T midItem = this[mid];
 
+                compareResult = effectiveComparer.Compare(item, midItem);
+
+                // item == midItem
+                if(compareResult == 0)
+                {
+                    return mid;
+                }
+
+                // item < midItem
                 if (compareResult < 0)
                 {
                     right = mid - 1;
-
                 }
-                else if (compareResult > 0)
+                else // item > midItem
                 {
                     left = mid + 1;
-                }
-                else
-                {
-                    return mid;
                 }
             }
 

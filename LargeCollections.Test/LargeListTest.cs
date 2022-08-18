@@ -37,49 +37,29 @@ namespace LargeCollections.Test
             LargeList<long> largeList;
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
-                Assert.Throws<ArgumentOutOfRangeException>(() => largeList = new(capacity));
+                Assert.Throws<ArgumentOutOfRangeException>(() => largeList = new LargeList<long>(capacity));
                 return;
             }
 
-            largeList = new(capacity);
+            largeList = new LargeList<long>(capacity);
             Assert.AreEqual(0L, largeList.Count);
             Assert.AreEqual(capacity, largeList.Capacity);
         }
 
         [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesTestCasesArguments))]
-        public void AddSetGetContainsRemove(long capacity)
+        public void AddRemoveClear(long capacity)
         {
             if (capacity < 0L || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeList<long> largeList = new(capacity);
+            LargeList<long> largeList = new LargeList<long>(capacity);
             for (long i = 0; i < capacity; i++)
             {
                 largeList.Add(i);
                 Assert.AreEqual(i + 1L, largeList.Count);
                 Assert.AreEqual(i, largeList[i]);
-            }
-
-            if (capacity == 0L)
-            {
-                Assert.IsFalse(largeList.Contains(0));
-                Assert.IsFalse(largeList.Contains(capacity - 1L));
-                Assert.IsFalse(largeList.Contains(capacity / 2L));
-            }
-            else
-            {
-                Assert.IsTrue(largeList.Contains(0));
-                Assert.IsTrue(largeList.Contains(capacity - 1L));
-                Assert.IsTrue(largeList.Contains(capacity / 2L));
-            }
-
-            for (long i = 0; i < capacity; i++)
-            {
-                Assert.AreEqual(i, largeList[i]);
-                largeList[i] = i + 1L;
-                Assert.AreEqual(i + 1L, largeList[i]);
             }
 
             for (long i = 0; i < capacity; i++)
@@ -93,70 +73,92 @@ namespace LargeCollections.Test
                     largeList.RemoveAt(0L);
                 }
 
-                Assert.AreEqual(capacity - (i + 1L), largeList.Count);
+                long expectedValue = capacity - 1L - i;
+                Assert.AreEqual(expectedValue, largeList.Count);
             }
+
+            largeList.Add(LargeEnumerable.Range(capacity));
+            Assert.AreEqual(capacity, largeList.Count);
+
+            // verify ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                long expectedValue = i;
+                Assert.AreEqual(expectedValue, largeList[i]);
+            }
+
+            largeList.Clear();
+            Assert.AreEqual(0L, largeList.Count);
         }
 
-        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesTestCasesArguments))]
-        public void Enumeration(long capacity)
+        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesWithOffsetTestCasesArguments))]
+        public void SetGet(long capacity, long offset)
         {
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeList<long> largeList = new(capacity);
-            for (long i = 0; i < capacity; i++)
-            {
-                largeList.Add(i);
-            }
+            LargeList<long> largeList = new LargeList<long>(capacity);
+            largeList.Add(LargeEnumerable.Range(capacity));
 
-            CollectionAssert.AreEqual(largeList, LargeEnumerable.Range(capacity));
-
-            long currentIToCompareWith = 0L;
-            largeList.DoForEach(i =>
-            {
-                Assert.AreEqual(i, currentIToCompareWith);
-                currentIToCompareWith++;
-            });
+            LargeArrayTest.SetGetTest(largeList, offset);
         }
 
-        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesTestCasesArguments))]
-        public void SortBinarySearch(long capacity)
+        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesWithOffsetTestCasesArguments))]
+        public void Enumeration(long capacity, long offset)
         {
-
             if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
                 return;
             }
 
-            LargeList<long> largeList = new(capacity);
-            for (long i = capacity - 1L; i >= 0L; i--)
+            LargeList<long> largeList = new LargeList<long>(capacity);
+            largeList.Add(LargeEnumerable.Range(capacity));
+
+            LargeArrayTest.EnumerationTest(largeList, offset);
+        }
+
+        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesWithOffsetTestCasesArguments))]
+        public void Sort(long capacity, long offset)
+        {
+            if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
-                largeList.Add(i);
+                return;
             }
 
-            long currentIToCompareWith = capacity - 1L;
-            largeList.DoForEach(i =>
-            {
-                Assert.AreEqual(i, currentIToCompareWith);
-                currentIToCompareWith--;
-            });
+            LargeList<long> largeList = new LargeList<long>(capacity);
+            largeList.Add(LargeEnumerable.Range(capacity));
 
-            largeList.Sort();
+            LargeArrayTest.SortTest(largeList, offset);
+        }
 
-            currentIToCompareWith = 0L;
-            largeList.DoForEach(i =>
+        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesWithOffsetTestCasesArguments))]
+        public void BinarySearch(long capacity, long offset)
+        {
+            if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
             {
-                Assert.AreEqual(i, currentIToCompareWith);
-                currentIToCompareWith++;
-            });
-
-            for (long i = 0; i < capacity; i++)
-            {
-                long index = largeList.BinarySearch(i);
-                Assert.AreEqual(i, index);
+                return;
             }
+
+            LargeList<long> largeList = new LargeList<long>(capacity);
+            largeList.Add(LargeEnumerable.Range(capacity));
+
+            LargeArrayTest.BinarySearchTest(largeList, offset);
+        }
+
+        [TestCaseSource(typeof(LargeArrayTest), nameof(LargeArrayTest.CapacitiesWithOffsetTestCasesArguments))]
+        public void Contains(long capacity, long offset)
+        {
+            if (capacity < 0 || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
+            {
+                return;
+            }
+
+            LargeList<long> largeList = new LargeList<long>(capacity);
+            largeList.Add(LargeEnumerable.Range(capacity));
+
+            LargeArrayTest.ContainsTest(largeList, offset);
         }
     }
 }

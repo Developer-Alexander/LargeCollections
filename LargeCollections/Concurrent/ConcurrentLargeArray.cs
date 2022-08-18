@@ -26,7 +26,6 @@ SOFTWARE.
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Collections;
 using System.Diagnostics;
@@ -36,7 +35,7 @@ namespace LargeCollections
     /// <summary>
     /// This is a thread-safe version of <see cref="LargeArray{T}"/>.
     /// </summary>
-    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerDisplay("ConcurrentLargeArray: Count = {Count}")]
     public class ConcurrentLargeArray<T> : ILargeArray<T>
     {
         protected LargeArray<T> _storage;
@@ -82,6 +81,15 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer = null)
+        {
+            lock (_storage)
+            {
+                return _storage.BinarySearch(item, offset, count, comparer);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item)
         {
             lock (_storage)
@@ -90,11 +98,26 @@ namespace LargeCollections
             }
         }
 
+        public bool Contains(T item, long offset, long count)
+        {
+            throw new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DoForEach(Action<T> action)
         {
             lock (_storage)
             {
                 _storage.DoForEach(action);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DoForEach(long offset, long count, Action<T> action)
+        {
+            lock (_storage)
+            {
+                _storage.DoForEach(offset, count, action);
             }
         }
 
@@ -113,6 +136,18 @@ namespace LargeCollections
             lock (_storage)
             {
                 foreach(T item in _storage)
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IEnumerable<T> GetAll(long offset, long count)
+        {
+            lock (_storage)
+            {
+                foreach (T item in _storage.GetAll(offset, count))
                 {
                     yield return item;
                 }
@@ -144,11 +179,20 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(Comparer<T> comparer)
+        public void Sort(Comparer<T> comparer = null)
         {
             lock (_storage)
             {
                 _storage.Sort(comparer);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Sort(long offset, long count, Comparer<T> comparer = null)
+        {
+            lock (_storage)
+            {
+                _storage.Sort(offset, count, comparer);
             }
         }
 

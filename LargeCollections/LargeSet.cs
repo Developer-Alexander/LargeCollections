@@ -32,7 +32,11 @@ using System.Text;
 
 namespace LargeCollections
 {
-    [DebuggerDisplay("Count = {Count}")]
+    /// <summary>
+    /// A mutable set of <typeparamref name="T"/> that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
+    /// Sets are hash based.
+    /// </summary>
+    [DebuggerDisplay("LargeSet: Count = {Count}")]
     public class LargeSet<T> : ILargeCollection<T>
     {
         protected LargeArray<SetElement> _storage = null;
@@ -146,6 +150,28 @@ namespace LargeCollections
             MaxLoadFactor = maxLoadFactor;
 
             MinLoadFactorTolerance = minLoadFactorTolerance;
+        }
+
+        public LargeSet(IEnumerable<T> items,
+            Comparer<T> comparer = null,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
+            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
+            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor,
+            double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
+            
+            :this(comparer,
+                 capacity, 
+                 capacityGrowFactor,
+                 fixedCapacityGrowAmount, 
+                 fixedCapacityGrowLimit, 
+                 minLoadFactor, 
+                 maxLoadFactor, 
+                 minLoadFactorTolerance)
+        {
+            Add(items);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -343,7 +369,7 @@ namespace LargeCollections
             long capacity = Capacity;
 
             // As long as the used hash value only uses 32 bit it does not make sence to use more than 2^32-1 buckets
-            if (capacity >= 4_294_967_295)
+            if (capacity >= 4_294_967_295L)
             {
                 return;
             }

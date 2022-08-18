@@ -28,14 +28,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace LargeCollections
 {
     /// <summary>
     /// This is a thread-safe version of <see cref="LargeSet{T}"/>.
     /// </summary>
-    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerDisplay("ConcurrentLargeSet: Count = {Count}")]
     public class ConcurrentLargeSet<T> : ILargeCollection<T>
     {
         protected LargeSet<T> _storage;
@@ -48,6 +47,18 @@ namespace LargeCollections
             double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor)
         {
             _storage = new LargeSet<T>(comparer, capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit, minLoadFactor, maxLoadFactor);
+        }
+
+        public ConcurrentLargeSet(IEnumerable<T> items,
+            Comparer<T> comparer = null,
+            long capacity = 1L,
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
+            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
+            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor)
+        {
+            _storage = new LargeSet<T>(items, comparer, capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit, minLoadFactor, maxLoadFactor);
         }
 
         public long Count
