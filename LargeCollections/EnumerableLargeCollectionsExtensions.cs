@@ -35,27 +35,40 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LargeList<T> ToLargeList<T>(this IEnumerable<T> items)
         {
-            LargeList<T> largeList = new LargeList<T>();
-            largeList.Add(items);
+            LargeList<T> largeList = new LargeList<T>(items);
             return largeList;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LargeSet<T> ToLargeSet<T>(this IEnumerable<T> items)
         {
-            LargeSet<T> largeSet = new LargeSet<T>();
-            largeSet.Add(items);
+            LargeSet<T> largeSet = new LargeSet<T>(items);
             return largeSet;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static LargeArray<T> ToLargeArray<T>(this IEnumerable<T> items)
+        {
+            LargeList<T> largeList = new LargeList<T>(items);
+            LargeArray<T> largeArray = new LargeArray<T>(largeList.Count);
+            largeList.CopyTo(largeArray, largeList.Count);
+
+            return largeArray;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerable<T> Skip<T>(this IEnumerable<T> items, long count)
         {
+            if (count <= 0L)
+            {
+                yield break;
+            }
+
             long currentCount = 0L;
 
             foreach (T item in items)
             {
-                if(currentCount > count)
+                if(currentCount >= count)
                 {
                     yield return item;
                 }
@@ -69,6 +82,11 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerable<T> Take<T>(this IEnumerable<T> items, long count)
         {
+            if(count <= 0L)
+            {
+                yield break;
+            }
+
             long currentCount = 0L;
 
             foreach (T item in items)

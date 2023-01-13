@@ -29,6 +29,9 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Collections;
 using System.Diagnostics;
+using System.Reflection;
+using System.Drawing;
+using LargeCollections.IO;
 
 namespace LargeCollections
 {
@@ -70,6 +73,18 @@ namespace LargeCollections
             _storage[storageCount - 1L] = new T[remainder];
 
             Count = capacity;
+        }
+
+        public LargeArray(long capacity, T initValue): this(capacity)
+        {
+            for (long i = 0L; i < _storage.LongLength; i++)
+            {
+                T[] currentStorage = _storage[i];
+                for (long j = 0L; j < currentStorage.LongLength; j++)
+                {
+                    currentStorage[j] = initValue;
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -133,6 +148,7 @@ namespace LargeCollections
             _storage = newStorage;
             Count = capacity;
         }
+
         public T this[long index] 
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -362,7 +378,6 @@ namespace LargeCollections
             Sort(0L, Count, comparer);
         }
 
-        //TODO Fix
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Sort(long offset, long count, Comparer<T> comparer = null)
         {
@@ -449,6 +464,165 @@ namespace LargeCollections
             }
 
             return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+
+            if(target is LargeArray<T> targetArray)
+            {
+                this.CopyTo(targetArray, count, sourceOffset, targetOffset);
+            }
+            else
+            {
+                // Use extension method
+                this.CopyTo<T>(target, count, sourceOffset, targetOffset);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(LargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (targetOffset < 0L || count < 0L || targetOffset + count > target.Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Count");
+            }
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
+            }
+
+            long currentCount = 0L;
+
+            while (currentCount < count)
+            {
+                long currentSourceOffset = sourceOffset + currentCount;
+                long currentSourceStorageIndex = currentSourceOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+                T[] currentSourceArray = _storage[currentSourceStorageIndex];
+
+                long currentTargetOffset = targetOffset + currentCount;
+                long currentTargetStorageIndex = currentTargetOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+                T[] currentTargetArray = target._storage[currentTargetStorageIndex];
+
+                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
+                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
+
+                currentCount += bytesToCopyCount;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (targetOffset < 0L || count < 0L || targetOffset + count > target.Length)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Length");
+            }
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
+            }
+
+            long currentCount = 0L;
+            T[] currentTargetArray = target;
+
+            while (currentCount < count)
+            {
+                long currentSourceOffset = sourceOffset + currentCount;
+                long currentSourceStorageIndex = currentSourceOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+                T[] currentSourceArray = _storage[currentSourceStorageIndex];
+
+                long currentTargetOffset = targetOffset + currentCount;
+                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+
+                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
+                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
+
+                currentCount += bytesToCopyCount;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            if (source is LargeArray<T> sourceArray)
+            {
+                this.CopyFrom(sourceArray, count, sourceOffset, targetOffset);
+            }
+            else
+            {
+                // Use extension method
+                this.CopyFrom<T>(source, count, sourceOffset, targetOffset);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(LargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            source.CopyTo(this, count, sourceOffset, targetOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            if (targetOffset < 0L || count < 0L || targetOffset + count > Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > Count");
+            }
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > source.Length)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > source.Length");
+            }
+
+            long currentCount = 0L;
+            T[] currentSourceArray = source;
+
+            while (currentCount < count)
+            {
+                long currentSourceOffset = sourceOffset + currentCount;
+                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+
+                long currentTargetOffset = targetOffset + currentCount;
+                long currentTargetStorageIndex = currentTargetOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
+                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+                T[] currentTargetArray = _storage[currentTargetStorageIndex];
+
+                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
+                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
+
+                currentCount += bytesToCopyCount;
+            }
         }
     }
 }

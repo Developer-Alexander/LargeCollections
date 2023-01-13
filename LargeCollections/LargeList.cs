@@ -301,7 +301,10 @@ namespace LargeCollections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long GetGrownCapacity(long capacity, double capacityGrowFactor, long fixedCapacityGrowAmount, long fixedCapacityGrowLimit)
+        public static long GetGrownCapacity(long capacity, 
+            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor, 
+            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount, 
+            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
         {
             long newCapacity;
             try
@@ -374,6 +377,50 @@ namespace LargeCollections
             }
 
             return _storage.BinarySearch(item, offset, count, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            if (targetOffset + count > Count)
+            {
+                throw new ArgumentException("targetOffset + count > Count");
+            }
+
+            _storage.CopyFrom(source, count, targetOffset, sourceOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
+        {
+            if (targetOffset + count > Count)
+            {
+                throw new ArgumentException("targetOffset + count > Count");
+            }
+
+            _storage.CopyFrom(source, count, targetOffset, sourceOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            if (sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset + count > Count");
+            }
+
+            _storage.CopyTo(target, count, sourceOffset, targetOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        {
+            if (sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset + count > Count");
+            }
+
+            _storage.CopyTo(target, count, sourceOffset, targetOffset);
         }
     }
 }

@@ -235,6 +235,28 @@ namespace LargeCollections
         {
             return GetAll().GetEnumerator();
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
+            }
+
+            _source.CopyTo(target, count, sourceOffset + Offset, targetOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        {
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
+            }
+
+            _source.CopyTo(target, count, sourceOffset + Offset, targetOffset);
+        }
     }
 
     /// <summary>
@@ -291,6 +313,28 @@ namespace LargeCollections
 
             long effectiveOffset = Offset + offset;
             _sourceAsLargeArray.Sort(effectiveOffset, count, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            if (targetOffset < 0L || count < 0L || targetOffset + count > Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > Count");
+            }
+
+            _sourceAsLargeArray.CopyFrom(source, count, targetOffset, sourceOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
+        {
+            if (targetOffset < 0L || count < 0L || targetOffset + count > Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > Count");
+            }
+
+            _sourceAsLargeArray.CopyFrom(source, count, targetOffset, sourceOffset);
         }
     }
 }

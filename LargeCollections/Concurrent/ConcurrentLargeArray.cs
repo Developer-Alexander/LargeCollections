@@ -98,9 +98,49 @@ namespace LargeCollections
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item, long offset, long count)
         {
-            throw new NotImplementedException();
+            lock (_storage)
+            {
+                return _storage.Contains(item, offset, count);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            lock (_storage)
+            {
+                _storage.CopyFrom(source, count, targetOffset, sourceOffset);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
+        {
+            lock (_storage)
+            {
+                _storage.CopyFrom(source, count, targetOffset, sourceOffset);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            lock (_storage)
+            {
+                _storage.CopyTo(target, count, sourceOffset, targetOffset);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        {
+            lock (_storage)
+            {
+                _storage.CopyTo(target, count, sourceOffset, targetOffset);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -18,11 +18,17 @@ Currently supported collections are:
 - DiskCache<TKey, TValue>
 - SpatialDiskCache<long, TValue>
 
+ReadOnlyLargeSpan<T> provides a readonly access to a segment of an IReadOnlyLargeArray<T>.
+LargeSpan<T> provides access to a segment of an ILargeArray<T>.
+
 DiskCache<TKey, TValue> is a dictionary-like collection that allows to limit the amount of memory (RAM) in MB that will be used.
 Any memory requirement that exceeds this amount is automatically swapped out to disk. 
 Additionally it offers multi-threaded operations for performance improvements.
 
 SpatialDiskCache<long, TValue> is a DiskCache<long, TValue> that allows to create a spatial index for the contained elements that can be used for spatial queries.
+
+Since many .NET API are designed to work with Streams the LargeMemoryStream implements a Stream based on a LargeArray<byte>.
+It extends on demand when writing to it. Additionally it supports reading and writing operations at the same time.
 
 # License
 

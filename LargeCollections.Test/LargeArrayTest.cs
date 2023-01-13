@@ -26,6 +26,7 @@ SOFTWARE.
 
 using NUnit.Framework;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -127,17 +128,11 @@ namespace LargeCollections.Test
                 return;
             }
 
-            // create array with ascending order
+            // create and verify array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
-            }
-
-            // verify ascending order
-            for (long i = 0; i < capacity; i++)
-            {
-                long expectedValue = i;
-                Assert.AreEqual(expectedValue, largeArray[i]);
+                Assert.AreEqual(i, largeArray[i]);
             }
 
             long dummy = 0L;
@@ -179,17 +174,11 @@ namespace LargeCollections.Test
                 return;
             }
 
-            // create array with ascending order
+            // create and verify array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
-            }
-
-            // verify ascending order
-            for (long i = 0; i < capacity; i++)
-            {
-                long expectedValue = i;
-                Assert.AreEqual(expectedValue, largeArray[i]);
+                Assert.AreEqual(i, largeArray[i]);
             }
 
             // GetAll
@@ -296,13 +285,8 @@ namespace LargeCollections.Test
             // create array with descending order
             for (long i = 0; i < capacity; i++)
             {
-                largeArray[i] = capacity - 1L - i;
-            }
-
-            // verify descending order
-            for (long i = 0; i < capacity; i++)
-            {
                 long expectedValue = capacity - 1L - i;
+                largeArray[i] = expectedValue;
                 Assert.AreEqual(expectedValue, largeArray[i]);
             }
 
@@ -361,17 +345,11 @@ namespace LargeCollections.Test
                 return;
             }
 
-            // create array with ascending order
+            // create and verify array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
-            }
-
-            // verify ascending order
-            for (long i = 0; i < capacity; i++)
-            {
-                long expectedValue = i;
-                Assert.AreEqual(expectedValue, largeArray[i]);
+                Assert.AreEqual(i, largeArray[i]);
             }
 
             // Binary Search
@@ -443,17 +421,11 @@ namespace LargeCollections.Test
                 return;
             }
 
-            // create array with ascending order
+            // create and verify array with ascending order
             for (long i = 0; i < capacity; i++)
             {
                 largeArray[i] = i;
-            }
-
-            // Verify ascending order
-            for (long i = 0; i < capacity; i++)
-            {
-                long expectedValue = i;
-                Assert.AreEqual(expectedValue, largeArray[i]);
+                Assert.AreEqual(i, largeArray[i]);
             }
 
             // Contains
@@ -475,6 +447,36 @@ namespace LargeCollections.Test
 
             // capacity must not be contained
             Assert.AreEqual(false, largeArray.Contains(capacity));
+        }
+
+        public static void CopyTest(ILargeArray<long> largeArray, long offset)
+        {
+            long capacity = largeArray.Count;
+            long count = capacity - 2L * offset;
+
+            // offset must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, -1L, count));
+
+            // count must not be less than 0
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, 0L, -1L));
+
+            // range must not exceed
+            Assert.Throws<ArgumentException>(() => largeArray.Contains(0L, 1L, capacity));
+
+            if (count < 0L || offset + count > capacity)
+            {
+                return;
+            }
+
+            // create and verify array with ascending order
+            for (long i = 0; i < capacity; i++)
+            {
+                largeArray[i] = i;
+                Assert.AreEqual(i, largeArray[i]);
+            }
+
+            LargeArray<long> targetArray = new LargeArray<long>(capacity, 0L);
+            largeArray.CopyTo(targetArray, capacity);
         }
     }
 }

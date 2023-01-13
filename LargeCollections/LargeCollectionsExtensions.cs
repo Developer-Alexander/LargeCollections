@@ -23,7 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
+using LargeCollections.IO;
+using System;
+using System.Drawing;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace LargeCollections
@@ -42,6 +45,112 @@ namespace LargeCollections
         {
             LargeSpan<T> largeSpan = new LargeSpan<T>(items, offset, count);
             return largeSpan;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static LargeMemoryStream AsStream(this LargeArray<byte> array, bool isReadonly = false)
+        {
+            LargeMemoryStream stream = new LargeMemoryStream(array, true, isReadonly);
+            return stream;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyTo<T>(this IReadOnlyLargeArray<T> items, ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        {
+            if(target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if(targetOffset < 0L || count < 0L || targetOffset + count > target.Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Count");
+            }
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > items.Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > items.Count");
+            }
+
+            for(long i = 0L; i < count; i++)
+            {
+                target[targetOffset + i] = items[sourceOffset + i];
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyTo<T>(this IReadOnlyLargeArray<T> items, T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (targetOffset < 0 || count < 0L || targetOffset + count > target.Length)
+            {
+                throw new ArgumentException("targetOffset < 0 || count < 0L || targetOffset + count > target.Length");
+            }
+            if (sourceOffset < 0L || count < 0L || sourceOffset + count > items.Count)
+            {
+                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > items.Count");
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                target[targetOffset + i] = items[sourceOffset + i];
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyTo<T>(this T[] items, ILargeArray<T> target, int count, int sourceOffset = 0, long targetOffset = 0L)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (targetOffset < 0L || count < 0L || targetOffset + count > target.Count)
+            {
+                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Count");
+            }
+            if (sourceOffset < 0 || count < 0L || sourceOffset + count > items.Length)
+            {
+                throw new ArgumentException("sourceOffset < 0 || count < 0L || sourceOffset + count > items.Length");
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                target[targetOffset + i] = items[sourceOffset + i];
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyFrom<T>(this ILargeArray<T> items, IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
+        {
+            if(source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            source.CopyTo(items, count, sourceOffset, targetOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyFrom<T>(this ILargeArray<T> items, T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            source.CopyTo(items, count, sourceOffset, targetOffset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyFrom<T>(this T[] items, IReadOnlyLargeArray<T> source, int count, int targetOffset = 0, long sourceOffset = 0L)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            source.CopyTo(items, count, sourceOffset, targetOffset);
         }
     }
 }

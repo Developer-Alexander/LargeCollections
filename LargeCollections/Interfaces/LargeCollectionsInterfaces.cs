@@ -158,6 +158,10 @@ namespace LargeCollections
         /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
         /// <param name="action">The function that that will be called for each item of the collection.</param>
         void DoForEach(long offset, long count, Action<T> action);
+
+        void CopyTo(ILargeArray<T> target, long count, long sourceOffset, long targetOffset);
+
+        void CopyTo(T[] target, int count, long sourceOffset, int targetOffset);
     }
 
     public interface ILargeArray<T> : IReadOnlyLargeArray<T>
@@ -189,6 +193,10 @@ namespace LargeCollections
         /// <param name="count">The <paramref name="count"/> of elements that belong to the range.</param>
         /// <param name="comparer">The <paramref name="comparer"/> whose <see cref="Comparer{T}.Compare(T, T)"/> function will be used to compare the items of the collection.</param>
         void Sort(long offset, long count, Comparer<T> comparer);
+
+        void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset, long sourceOffset);
+
+        void CopyFrom(T[] source, int count, long targetOffset, int sourceOffset);
     }
 
     public interface ILargeList<T> : ILargeArray<T>, ILargeCollection<T>
