@@ -18,7 +18,7 @@ There are also thread-safe (concurrent) variants of the corresponding collection
     <PackageProjectUrl>https://github.com/Developer-Alexander/LargeCollections</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Title>Large Collections</Title>
-    <Version>2.1.0</Version>
+    <Version>2.1.1</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
