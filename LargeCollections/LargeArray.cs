@@ -23,74 +23,48 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Collections;
 using System.Diagnostics;
-using System.Reflection;
-using System.Drawing;
-using LargeCollections.IO;
+using System.Runtime.CompilerServices;
 
 namespace LargeCollections
 {
     /// <summary>
-    /// A mutable array of <typeparamref name="T"/> that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
+    /// A mutable array of <typeparamref name="T"/> that can store up to <see cref="Constants.MaxLargeCollectionCount"/> elements.
     /// Arrays allow index based access to the elements.
     /// </summary>
     [DebuggerDisplay("LargeArray: Count = {Count}")]
     public class LargeArray<T> : ILargeArray<T>
     {
-        protected static readonly Comparer<T> _comparer = Comparer<T>.Default;
+        private static readonly Comparer<T> _DefaultComparer = Comparer<T>.Default;
 
-        protected T[][] _storage;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int DefaultComparer(T left, T right)
+        {
+            int result = _DefaultComparer.Compare(left, right);
+            return result;
+        }
+
+        private T[][] _Storage;
 
         public long Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set;
+            private set;
         }
 
         public LargeArray(long capacity = 0L)
         {
-            if (capacity < 0L || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
-            {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
-            }
-
-            long storageCount = capacity / LargeCollectionsConstants.MaxStandardArrayCapacity + 1L;
-            long remainder = capacity % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            _storage = new T[storageCount][];
-
-            for (long i = 0L; i < storageCount - 1L; i++)
-            {
-                _storage[i] = new T[LargeCollectionsConstants.MaxStandardArrayCapacity];
-            }
-            _storage[storageCount - 1L] = new T[remainder];
-
+            _Storage = StorageExtensions.StorageCreate<T>(capacity);
             Count = capacity;
-        }
-
-        public LargeArray(long capacity, T initValue): this(capacity)
-        {
-            for (long i = 0L; i < _storage.LongLength; i++)
-            {
-                T[] currentStorage = _storage[i];
-                for (long j = 0L; j < currentStorage.LongLength; j++)
-                {
-                    currentStorage[j] = initValue;
-                }
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Resize(long capacity)
         {
-            if (capacity < 0L || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
+            if (capacity < 0L || capacity > Constants.MaxLargeCollectionCount)
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity));
             }
@@ -99,177 +73,119 @@ namespace LargeCollections
             {
                 return;
             }
-
-            long storageCount = capacity / LargeCollectionsConstants.MaxStandardArrayCapacity + 1L;
-            long remainder = capacity % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            T[][] newStorage = new T[storageCount][];
-
-            if (capacity < Count)
-            {
-                for (long i = 0; i < storageCount - 1L; i++)
-                {
-                    newStorage[i] = _storage[i];
-                }
-
-                newStorage[storageCount - 1L] = new T[remainder];
-
-                T[] currentNewStorage = newStorage[storageCount - 1L];
-                T[] currentOldStorage = _storage[storageCount - 1L];
-                for (long j = 0L; j < currentNewStorage.LongLength; j++)
-                {
-                    currentNewStorage[j] = currentOldStorage[j];
-                }
-            }
-            else
-            {
-                for (long i = 0L; i < storageCount - 1L; i++)
-                {
-                    if(i < _storage.LongLength - 1L)
-                    {
-                        newStorage[i] = _storage[i];
-                    }
-                    else
-                    {
-                        newStorage[i] = new T[LargeCollectionsConstants.MaxStandardArrayCapacity];
-                    }
-                }
-
-                newStorage[storageCount - 1L] = new T[remainder];
-
-                T[] currentNewStorage = newStorage[_storage.LongLength - 1L];
-                T[] currentOldStorage = _storage[_storage.LongLength - 1L];
-                for (long j = 0L; j < currentOldStorage.LongLength; j++)
-                {
-                    currentNewStorage[j] = currentOldStorage[j];
-                }
-            }
-
-            _storage = newStorage;
+            _Storage = _Storage.StorageResize(capacity);
             Count = capacity;
         }
 
-        public T this[long index] 
+        public T this[long index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(index);
+            get
+            {
+                StorageExtensions.CheckIndex(index, Count);
+                T result = _Storage.StorageGet(index);
+                return result;
+            }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => Set(index, value);
+            set
+            {
+                StorageExtensions.CheckIndex(index, Count);
+                _Storage.StorageSet(index, value);
+            }
         }
 
         T IReadOnlyLargeArray<T>.this[long index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(index);
+            get
+            {
+                StorageExtensions.CheckIndex(index, Count);
+                T result = _Storage.StorageGet(index);
+                return result;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item)
         {
-            return Contains(item, 0L, Count);
+            bool result = _Storage.Contains(item, 0L, Count, LargeSet<T>.DefaultEqualsFunction);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(T item, long offset, long count)
         {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
+            StorageExtensions.CheckRange(offset, count, Count);
 
-            if(count == 0L)
+            if (count == 0L)
             {
                 return false;
             }
 
-            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
+            bool result = _Storage.Contains(item, offset, count, LargeSet<T>.DefaultEqualsFunction);
+            return result;
+        }
 
-            long currentCount = 0L;
 
-            for (long i = storageIndex; i < _storage.LongLength; i++)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(ILargeArray<T> target, long sourceOffset, long targetOffset, long count)
+        {
+            StorageExtensions.CheckRange(sourceOffset, count, Count);
+            StorageExtensions.CheckRange(targetOffset, count, target.Count);
+
+            if (target is LargeArray<T> largeArrayTarget)
             {
-                T[] currentStorage = _storage[i];
-                for (long j = itemIndex; j < currentStorage.LongLength; j++)
+                T[][] targetStorage = largeArrayTarget.GetStorage();
+                _Storage.StorageCopyTo(targetStorage, sourceOffset, targetOffset, count);
+            }
+            else if (target is LargeList<T> largeListTarget)
+            {
+                T[][] targetStorage = largeListTarget.GetStorage();
+                _Storage.StorageCopyTo(targetStorage, sourceOffset, targetOffset, count);
+            }
+            else
+            {
+                for (long i = 0L; i < count; i++)
                 {
-                    if (currentCount < count)
-                    {
-                        if (_comparer.Compare(currentStorage[j], item) == 0)
-                        {
-                            return true;
-                        }
-                        currentCount++;
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    T item = _Storage.StorageGet(sourceOffset + i);
+                    target[targetOffset + i] = item;
                 }
             }
+        }
 
-            return false;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(Span<T> target, long sourceOffset, long count)
+        {
+            StorageExtensions.CheckRange(sourceOffset, count, Count);
+
+            _Storage.StorageCopyTo(target, sourceOffset, count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get(long index)
         {
-            if(index < 0L || index >= Count)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            long storageIndex = index / LargeCollectionsConstants.MaxStandardArrayCapacity;
-            long itemIndex = index % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            return _storage[storageIndex][itemIndex];
+            StorageExtensions.CheckIndex(index, Count);
+            T result = _Storage.StorageGet(index);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerable<T> GetAll()
         {
-            for (long i = 0L; i < _storage.LongLength; i++)
+            foreach (T item in _Storage.StorageGetAll(0L, Count))
             {
-                T[] currentStorage = _storage[i];
-                for (long j = 0L; j < currentStorage.LongLength; j++)
-                {
-                    yield return currentStorage[j];
-                }
+                yield return item;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerable<T> GetAll(long offset, long count)
         {
-            if (offset < 0L || count < 0L || offset + count > Count)
+            StorageExtensions.CheckRange(offset, count, Count);
+
+            foreach (T item in _Storage.StorageGetAll(offset, count))
             {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            if(count == 0L)
-            {
-                yield break;
-            }
-
-            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            long currentCount = 0L;
-
-            for (long i = storageIndex; i < _storage.LongLength; i++)
-            {
-                T[] currentStorage = _storage[i];
-                for (long j = itemIndex; j < currentStorage.LongLength; j++)
-                {
-                    if (currentCount < count)
-                    {
-                        yield return currentStorage[j];
-                        currentCount++;
-                    }
-                    else
-                    {
-                        yield break;
-                    }
-                }
+                yield return item;
             }
         }
 
@@ -279,19 +195,11 @@ namespace LargeCollections
             return GetAll().GetEnumerator();
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set(long index, T item)
         {
-            if (index < 0L || index >= Count)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            long storageIndex = index / LargeCollectionsConstants.MaxStandardArrayCapacity;
-            long itemIndex = index % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            _storage[storageIndex][itemIndex] = item;
+            StorageExtensions.CheckIndex(index, Count);
+            _Storage.StorageSet(index, item);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -303,326 +211,73 @@ namespace LargeCollections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DoForEach(Action<T> action)
         {
-            DoForEach(0L, Count, action);
+            _Storage.StorageDoForEach((ref T item) => action.Invoke(item), 0L, Count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DoForEach(long offset, long count, Action<T> action)
+        public void DoForEach(Action<T> action, long offset, long count)
         {
-            if (action == null)
-            {
-                return;
-            }
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-            if(count == 0L)
-            {
-                return;
-            }
-
-            long storageIndex = offset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-            long itemIndex = offset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-            long currentCount = 0L;
-
-            for (long i = storageIndex; i < _storage.LongLength; i++)
-            {
-                T[] currentStorage = _storage[i];
-                for (long j = itemIndex; j < currentStorage.LongLength; j++)
-                {
-                    if(currentCount < count)
-                    {
-                        action(currentStorage[j]);
-                        currentCount++;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-            }
+            StorageExtensions.CheckRange(offset, count, Count);
+            _Storage.StorageDoForEach((ref T item) => action.Invoke(item), offset, count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void Heapify(long i, long left, long right, Comparer<T> comparer)
+        public void DoForEach(RefAction<T> action)
         {
-            long maxIndex = i;
-            long leftIndex = left + (2L * (i - left)) + 1L;
-            long rightIndex = left + (2L * (i - left)) + 2L;
-
-            if (leftIndex <= right && comparer.Compare(this[maxIndex], this[leftIndex]) < 0)
-            {
-                maxIndex = leftIndex;
-            }
-
-            if (rightIndex <= right && comparer.Compare(this[maxIndex], this[rightIndex]) < 0)
-            {
-                maxIndex = rightIndex;
-            }
-
-            if (maxIndex != i)
-            {
-                T swapItem = this[i];
-                this[i] = this[maxIndex];
-                this[maxIndex] = swapItem;
-
-                Heapify(maxIndex, left, right, comparer);
-            }
+            _Storage.StorageDoForEach(action, 0L, Count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(Comparer<T> comparer = null)
+        public void DoForEach(RefAction<T> action, long offset, long count)
         {
-            Sort(0L, Count, comparer);
+            StorageExtensions.CheckRange(offset, count, Count);
+            _Storage.StorageDoForEach(action, offset, count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(long offset, long count, Comparer<T> comparer = null)
+        public void Sort(Func<T, T, int> comparer)
         {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            if (count <= 1L)
-            {
-                return;
-            }
-
-            Comparer<T> effectiveComparer = comparer ?? _comparer;
-
-            long left = offset;
-            long mid = (offset + count) / 2L;
-            long right = (offset + count) - 1L;
-
-            for (long i = mid; i >= left; i--)
-            {
-                Heapify(i, left, right, effectiveComparer);
-            }
-
-            for (long i = right; i >= left; i--)
-            {
-                T swapItem = this[left];
-                this[left] = this[i];
-                this[i] = swapItem;
-
-                Heapify(left, left, i - 1L, effectiveComparer);
-            }
+            comparer ??= DefaultComparer;
+            _Storage.StorageSort(comparer, 0L, Count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long BinarySearch(T item, Comparer<T> comparer = null)
+        public void Sort(Func<T, T, int> comparer, long offset, long count)
         {
-            return BinarySearch(item, 0L, Count, comparer);
+            StorageExtensions.CheckRange(offset, count, Count);
+            comparer ??= DefaultComparer;
+            _Storage.StorageSort(comparer, offset, count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer = null)
+        public long BinarySearch(T item, Func<T, T, int> comparer)
         {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            if(count == 0L)
-            {
-                return -1;
-            }
-
-            Comparer<T> effectiveComparer = comparer ?? _comparer;
-
-            long left = offset;
-            long mid = offset;
-            long right = offset + count - 1L;
-            int compareResult = 0;
-
-            while (right >= left)
-            {
-                mid = (right + left) / 2;
-
-                T midItem = this[mid];
-
-                compareResult = effectiveComparer.Compare(item, midItem);
-
-                // item == midItem
-                if(compareResult == 0)
-                {
-                    return mid;
-                }
-
-                // item < midItem
-                if (compareResult < 0)
-                {
-                    right = mid - 1;
-                }
-                else // item > midItem
-                {
-                    left = mid + 1;
-                }
-            }
-
-            return -1;
+            comparer ??= DefaultComparer;
+            long result = _Storage.StorageBinarySearch(item, comparer, 0L, Count);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        public long BinarySearch(T item, Func<T, T, int> comparer, long offset, long count)
         {
-            if (target == null)
-            {
-                throw new ArgumentNullException(nameof(target));
-            }
-
-            if(target is LargeArray<T> targetArray)
-            {
-                this.CopyTo(targetArray, count, sourceOffset, targetOffset);
-            }
-            else
-            {
-                // Use extension method
-                this.CopyTo<T>(target, count, sourceOffset, targetOffset);
-            }
+            StorageExtensions.CheckRange(offset, count, Count);
+            comparer ??= DefaultComparer;
+            long result = _Storage.StorageBinarySearch(item, comparer, offset, count);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(LargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
+        public void Swap(long leftIndex, long rightIndex)
         {
-            if (target == null)
-            {
-                throw new ArgumentNullException(nameof(target));
-            }
-            if (targetOffset < 0L || count < 0L || targetOffset + count > target.Count)
-            {
-                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Count");
-            }
-            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
-            {
-                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
-            }
-
-            long currentCount = 0L;
-
-            while (currentCount < count)
-            {
-                long currentSourceOffset = sourceOffset + currentCount;
-                long currentSourceStorageIndex = currentSourceOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-                T[] currentSourceArray = _storage[currentSourceStorageIndex];
-
-                long currentTargetOffset = targetOffset + currentCount;
-                long currentTargetStorageIndex = currentTargetOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-                T[] currentTargetArray = target._storage[currentTargetStorageIndex];
-
-                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
-                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
-
-                currentCount += bytesToCopyCount;
-            }
+            StorageExtensions.CheckIndex(leftIndex, Count);
+            StorageExtensions.CheckIndex(rightIndex, Count);
+            _Storage.StorageSwap(leftIndex, rightIndex);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
+        internal T[][] GetStorage()
         {
-            if (target == null)
-            {
-                throw new ArgumentNullException(nameof(target));
-            }
-            if (targetOffset < 0L || count < 0L || targetOffset + count > target.Length)
-            {
-                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > target.Length");
-            }
-            if (sourceOffset < 0L || count < 0L || sourceOffset + count > Count)
-            {
-                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > Count");
-            }
-
-            long currentCount = 0L;
-            T[] currentTargetArray = target;
-
-            while (currentCount < count)
-            {
-                long currentSourceOffset = sourceOffset + currentCount;
-                long currentSourceStorageIndex = currentSourceOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-                T[] currentSourceArray = _storage[currentSourceStorageIndex];
-
-                long currentTargetOffset = targetOffset + currentCount;
-                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
-                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
-
-                currentCount += bytesToCopyCount;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
-        {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            if (source is LargeArray<T> sourceArray)
-            {
-                this.CopyFrom(sourceArray, count, sourceOffset, targetOffset);
-            }
-            else
-            {
-                // Use extension method
-                this.CopyFrom<T>(source, count, sourceOffset, targetOffset);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(LargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
-        {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            source.CopyTo(this, count, sourceOffset, targetOffset);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
-        {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            if (targetOffset < 0L || count < 0L || targetOffset + count > Count)
-            {
-                throw new ArgumentException("targetOffset < 0L || count < 0L || targetOffset + count > Count");
-            }
-            if (sourceOffset < 0L || count < 0L || sourceOffset + count > source.Length)
-            {
-                throw new ArgumentException("sourceOffset < 0L || count < 0L || sourceOffset + count > source.Length");
-            }
-
-            long currentCount = 0L;
-            T[] currentSourceArray = source;
-
-            while (currentCount < count)
-            {
-                long currentSourceOffset = sourceOffset + currentCount;
-                long currentSourceItemIndex = currentSourceOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-
-                long currentTargetOffset = targetOffset + currentCount;
-                long currentTargetStorageIndex = currentTargetOffset / LargeCollectionsConstants.MaxStandardArrayCapacity;
-                long currentTargetItemIndex = currentTargetOffset % LargeCollectionsConstants.MaxStandardArrayCapacity;
-                T[] currentTargetArray = _storage[currentTargetStorageIndex];
-
-                long bytesToCopyCount = Math.Min(currentSourceArray.LongLength - currentSourceItemIndex, currentTargetArray.LongLength - currentTargetItemIndex);
-                Array.Copy(currentSourceArray, currentSourceItemIndex, currentTargetArray, currentTargetItemIndex, bytesToCopyCount);
-
-                currentCount += bytesToCopyCount;
-            }
+            T[][] result = _Storage;
+            return result;
         }
     }
 }

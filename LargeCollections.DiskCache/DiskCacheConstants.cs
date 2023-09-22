@@ -23,31 +23,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Text;
+namespace LargeCollections;
 
-namespace LargeCollections
+public static class DiskCacheConstants
 {
-    public static class DiskCacheConstants
-    {
-        /// <summary>
-        /// Sqlite page size in Byte
-        /// </summary>
-        public const long PageSize = 4096L;
+    /// <summary>
+    /// Sqlite page size in Byte
+    /// </summary>
+    public const long PageSize = 4096L;
 
-        /// <summary>
-        /// Maximum amount of memory (RAM) in MB that will be used if no other value in specified.
-        /// </summary>
-        public const long DefaultMaxMemorySize = 0L;
+    /// <summary>
+    /// Maximum amount of memory (RAM) in MB that will be used if no other value in specified.
+    /// </summary>
+    public const long DefaultMaxMemorySize = 0L;
 
-        /// <summary>
-        /// The size of an item in Byte which it must not exeed. This limitation is inherited from Sqlite.
-        /// </summary>
-        public const long MaxItemLength = 1_000_000_000L;
+    /// <summary>
+    /// The size of an item in Byte which it must not exeed. This limitation is inherited from Sqlite.
+    /// </summary>
+    public const long MaxItemLength = 1_000_000_000L;
 
-        public const byte DefaultDegreeOfParallelism = 1;
+    public const byte DefaultDegreeOfParallelism = 1;
 
-        public const string DefaultFileExtension = "sqlite";
-    }
+    public const string DefaultFileExtension = "sqlite";
 }

@@ -23,171 +23,112 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.IO;
-using System.Drawing;
-using LargeCollections.IO;
-
 namespace LargeCollections
 {
     public static class StreamExtensions
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Write(this Stream stream, IEnumerable<byte> source)
+        public static long Read(this Stream stream, ILargeArray<byte> target)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            return stream.Read(target, 0L, target.Count);
+        }
+
+        public static long Read(this Stream stream, ILargeArray<byte> target, long offset)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            return stream.Read(target, offset, target.Count - offset);
+        }
+
+        public static long Read(this Stream stream, ILargeArray<byte> target, long offset, long count)
+        {
+            if (!stream.CanRead)
+            {
+                throw new NotSupportedException();
+            }
+
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            StorageExtensions.CheckRange(offset, count, target.Count);
+
+            long maxReadableCount = stream.Length - stream.Position;
+            if (count < maxReadableCount)
+            {
+                maxReadableCount = count;
+            }
+
+            if (stream is LargeReadableMemoryStream largeReadableMemoryStream)
+            {
+                largeReadableMemoryStream.Source.CopyTo(target, stream.Position, offset, maxReadableCount);
+                stream.Position += maxReadableCount;
+            }
+            else
+            {
+                // TODO Improve performance
+                for (long i = 0L; i < maxReadableCount; i++)
+                {
+                    int currentByte = stream.ReadByte();
+                    if (currentByte < 0)
+                    {
+                        break;
+                    }
+                    target[i + offset] = (byte)currentByte;
+                }
+            }
+
+            return maxReadableCount;
+        }
+
+        public static void Write(this Stream stream, IReadOnlyLargeArray<byte> source)
         {
             if (source == null)
             {
                 throw new ArgumentNullException(nameof(source));
             }
-
-            foreach (byte currentByte in source)
-            {
-                stream.WriteByte(currentByte);
-            }
+            stream.Write(source, 0L, source.Count);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Write(this Stream stream, IReadOnlyLargeArray<byte> source, long offset = 0L)
+        public static void Write(this Stream stream, IReadOnlyLargeArray<byte> source, long offset)
         {
-            if (stream is LargeMemoryStream largeMemoryStream)
+            if (source == null)
             {
-                // Check is done by LargeMemoryStream.Write()
-                largeMemoryStream.Write(source, offset);
+                throw new ArgumentNullException(nameof(source));
             }
-            else
-            {
-                if (source == null)
-                {
-                    throw new ArgumentNullException(nameof(source));
-                }
-
-                long count = source.Count - offset;
-
-                if (offset < 0 || count < 0 || offset + count > source.Count)
-                {
-                    throw new ArgumentException("offset < 0 || count < 0 || offset + count > source.Count");
-                }
-
-                for (long i = 0L; i < count; i++)
-                {
-                    stream.WriteByte(source[i + offset]);
-                }
-            }
+            stream.Write(source, offset, source.Count - offset);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Write(this Stream stream, IReadOnlyLargeArray<byte> source, long offset, long count)
         {
-            if (stream is LargeMemoryStream largeMemoryStream)
+            if (!stream.CanWrite)
             {
-                // Check is done by LargeMemoryStream.Write()
-                largeMemoryStream.Write(source, offset, count);
+                throw new NotSupportedException();
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            StorageExtensions.CheckRange(offset, count, source.Count);
+
+            if (stream is LargeWritableMemoryStream largeWritableMemoryStream)
+            {
+                largeWritableMemoryStream.Storage.Add(source, offset, count);
             }
             else
             {
-                if (source == null)
-                {
-                    throw new ArgumentNullException(nameof(source));
-                }
-
-                if (offset < 0 || count < 0 || offset + count > source.Count)
-                {
-                    throw new ArgumentException("offset < 0 || count < 0 || offset + count > source.Count");
-                }
-
+                // TODO Improve performance
                 for (long i = 0L; i < count; i++)
                 {
-                    stream.WriteByte(source[i + offset]);
+                    byte currentByte = source[i + offset];
+                    stream.WriteByte(currentByte);
                 }
-            }
-
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long Read(this Stream stream, ILargeArray<byte> target, long offset = 0L)
-        {
-            long readCount = 0L;
-            if (stream is LargeMemoryStream largeMemoryStream)
-            {
-                // Check is done by LargeMemoryStream.Read()
-                readCount = largeMemoryStream.Read(target, offset);
-            }
-            else
-            {
-                if (target == null)
-                {
-                    throw new ArgumentNullException(nameof(target));
-                }
-
-                long count = target.Count - offset;
-
-                if (offset < 0 || count < 0 || offset + count > target.Count)
-                {
-                    throw new ArgumentException("offset < 0 || count < 0 || offset + count > target.Count");
-                }
-
-                for (long i = 0L; i < count; i++)
-                {
-                    int currentByte = stream.ReadByte();
-                    if (currentByte < 0)
-                    {
-                        continue;
-                    }
-                    target[i + offset] = (byte)currentByte;
-                    readCount++;
-                }
-
-            }
-
-            return readCount;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long Read(this Stream stream, ILargeArray<byte> target, long offset, long count)
-        {
-            long readCount = 0L;
-            if (stream is LargeMemoryStream largeMemoryStream)
-            {
-                // Check is done by LargeMemoryStream.Read()
-                readCount = largeMemoryStream.Read(target, offset, count);
-            }
-            else
-            {
-                if (target == null)
-                {
-                    throw new ArgumentNullException(nameof(target));
-                }
-                if (offset < 0 || count < 0 || offset + count > target.Count)
-                {
-                    throw new ArgumentException("offset < 0 || count < 0 || offset + count > target.Count");
-                }
-
-                for (long i = 0L; i < count; i++)
-                {
-                    int currentByte = stream.ReadByte();
-                    if (currentByte < 0)
-                    {
-                        continue;
-                    }
-                    target[i + offset] = (byte)currentByte;
-                    readCount++;
-                }
-
-            }
-
-            return readCount;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IEnumerable<byte> AsEnumerable(this Stream stream)
-        {
-            int currentByte = 0;
-            while ((currentByte = stream.ReadByte()) >= 0)
-            {
-                yield return (byte)currentByte;
             }
         }
     }

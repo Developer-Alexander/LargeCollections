@@ -23,27 +23,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace LargeCollections
 {
-    public static class LargeCollectionsConstants
+    public static class Constants
     {
-#if UNIT_TEST
-        public const long MaxStandardArrayCapacity = 10L;
+
+#if false //UNIT_TEST
+        public const long MaxStorageCapacity = 16L;
+        public const int StorageIndexShiftAmount = 4;
 #else
-        /// <summary>
-        /// The maximum number of elements that can be stored in a .NET array. <see cref="https://docs.microsoft.com/en-us/dotnet/api/system.array"/>
-        /// </summary>
-        public const long MaxStandardArrayCapacity = 2_146_435_071L;
+        public const long MaxStorageCapacity = 1_073_741_824L; // 2^30
+        public const int StorageIndexShiftAmount = 30;
 #endif
+
+
 
         /// <summary>
         /// The maximum number of items that can be stored in a <see cref="IReadOnlyCollection{T}"/>
         /// </summary>
-        public const long MaxLargeCollectionCount = MaxStandardArrayCapacity * MaxStandardArrayCapacity;
+        public const long MaxLargeCollectionCount = MaxStorageCapacity * MaxStorageCapacity;
 
         public const double MaxCapacityGrowFactor = 3.0;
 

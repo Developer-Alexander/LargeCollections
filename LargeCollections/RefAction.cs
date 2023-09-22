@@ -23,29 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System.Diagnostics;
-
 namespace LargeCollections;
 
-
-[DebuggerDisplay("BoundingBox: MinX = {MinX}, MaxX = {MaxX}, MinY = {MinY}, MaxY = {MaxY}")]
-public record struct BoundingBox(double MinX, double MaxX, double MinY, double MaxY)
-{
-    public bool Interset(BoundingBox otherBoundingBox)
-    {
-        if (otherBoundingBox.MaxX < MinX
-            || otherBoundingBox.MinX > MaxX
-            || otherBoundingBox.MaxY < MinY
-            || otherBoundingBox.MinY > MaxY)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    public override string ToString()
-    {
-        return $"Min: ({MinX}; {MinY}); Max: ({MaxX}; {MaxY})";
-    }
-}
+public delegate void RefAction<T>(ref T item);

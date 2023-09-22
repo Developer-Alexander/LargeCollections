@@ -23,179 +23,208 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 
-namespace LargeCollections
+namespace LargeCollections;
+
+/// <summary>
+/// A mutable dictionary of <typeparamref name="TKey"/> as key and <typeparamref name="TValue"/> as value that can store up to <see cref="Constants.MaxLargeCollectionCount"/> elements.
+/// Dictionaries are hash based.
+/// </summary>
+[DebuggerDisplay("LargeDictionary: Count = {Count}")]
+public class LargeDictionary<TKey, TValue> : LargeSet<KeyValuePair<TKey, TValue>>, ILargeDictionary<TKey, TValue>
 {
-    /// <summary>
-    /// A mutable dictionary of <typeparamref name="TKey"/> as key and <typeparamref name="TValue"/> as value that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
-    /// Dictionaries are hash based.
-    /// </summary>
-    [DebuggerDisplay("LargeDictionary: Count = {Count}")]
-    public class LargeDictionary<TKey, TValue> : LargeSet<KeyValuePair<TKey, TValue>>, ILargeDictionary<TKey, TValue>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool DefaultKeyEqualsFunction(KeyValuePair<TKey, TValue> left, KeyValuePair<TKey, TValue> right)
     {
-        public class KeyOnlyComparer : Comparer<KeyValuePair<TKey, TValue>>
+        bool result = LargeSet<TKey>.DefaultEqualsFunction(left.Key, right.Key);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int DefaultKeyHashCodeFunction(KeyValuePair<TKey, TValue> item)
+    {
+        int result = LargeSet<TKey>.DefaultHashCodeFunction(item.Key);
+        return result;
+    }
+
+    public LargeDictionary(Func<TKey, TKey, bool> keyEqualsFunction = null,
+        Func<TKey, int> hashCodeFunction = null,
+        long capacity = 1L,
+        double capacityGrowFactor = Constants.DefaultCapacityGrowFactor,
+        long fixedCapacityGrowAmount = Constants.DefaultFixedCapacityGrowAmount,
+        long fixedCapacityGrowLimit = Constants.DefaultFixedCapacityGrowLimit,
+        double minLoadFactor = Constants.DefaultMinLoadFactor,
+        double maxLoadFactor = Constants.DefaultMaxLoadFactor,
+        double minLoadFactorTolerance = Constants.DefaultMinLoadFactorTolerance)
+
+        : base(DefaultKeyEqualsFunction,
+            DefaultKeyHashCodeFunction,
+            capacity,
+            capacityGrowFactor,
+            fixedCapacityGrowAmount,
+            fixedCapacityGrowLimit,
+            minLoadFactor,
+            maxLoadFactor,
+            minLoadFactorTolerance)
+    {
+        if (keyEqualsFunction != null)
         {
-            private Comparer<TKey> _baseComparer;
-
-            public KeyOnlyComparer(Comparer<TKey> baseComparer = null)
-            {
-                _baseComparer = baseComparer ?? Comparer<TKey>.Default;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
-            {
-                return _baseComparer.Compare(x.Key, y.Key);
-            }
+            EqualsFunction = (left, right) => keyEqualsFunction.Invoke(left.Key, right.Key);
         }
-
-        public LargeDictionary(Comparer<TKey> comparer = null,
-            long capacity = 1L,
-            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
-            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
-            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
-            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
-            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor,
-            double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
-
-            : base(new KeyOnlyComparer(comparer),
-                  capacity,
-                  capacityGrowFactor,
-                  fixedCapacityGrowAmount,
-                  fixedCapacityGrowLimit,
-                  minLoadFactor,
-                  maxLoadFactor,
-                  minLoadFactorTolerance)
+        if (hashCodeFunction != null)
         {
-            _hashCodeFunction = (KeyValuePair<TKey, TValue> item) => item.Key.GetHashCode();
-        }
-
-        public LargeDictionary(IEnumerable<KeyValuePair<TKey, TValue>> items,
-            Comparer<TKey> comparer = null,
-            long capacity = 1L,
-            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
-            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
-            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit,
-            double minLoadFactor = LargeCollectionsConstants.DefaultMinLoadFactor,
-            double maxLoadFactor = LargeCollectionsConstants.DefaultMaxLoadFactor,
-            double minLoadFactorTolerance = LargeCollectionsConstants.DefaultMinLoadFactorTolerance)
-
-            : this(comparer,
-                  capacity,
-                  capacityGrowFactor,
-                  fixedCapacityGrowAmount,
-                  fixedCapacityGrowLimit,
-                  minLoadFactor,
-                  maxLoadFactor,
-                  minLoadFactorTolerance)
-        {
-            Add(items);
-        }
-
-        public IEnumerable<TKey> Keys
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                long capacity = Capacity;
-
-                for (long i = 0L; i < capacity; i++)
-                {
-                    SetElement element = _storage[i];
-
-                    while (element != null)
-                    {
-                        yield return element.Item.Key;
-                        element = element.Next;
-                    }
-                }
-            }
-        }
-
-        public IEnumerable<TValue> Values
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                long capacity = Capacity;
-
-                for (long i = 0L; i < capacity; i++)
-                {
-                    SetElement element = _storage[i];
-
-                    while (element != null)
-                    {
-                        yield return element.Item.Value;
-                        element = element.Next;
-                    }
-                }
-            }
-        }
-
-        TValue IReadOnlyLargeDictionary<TKey, TValue>.this[TKey key]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(key);
-        }
-
-        public TValue this[TKey key] 
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(key);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => Set(key, value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Set(TKey key, TValue value)
-        {
-            Add(new KeyValuePair<TKey, TValue>(key, value));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Remove(TKey key)
-        {
-            Remove(new KeyValuePair<TKey, TValue>(key, default(TValue)));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TValue Get(TKey key)
-        {
-            KeyValuePair<TKey, TValue> keyItem = new KeyValuePair<TKey, TValue>(key, default(TValue));
-            if (!TryGetValue(keyItem, out KeyValuePair<TKey, TValue> value))
-            {
-                throw new KeyNotFoundException(key.ToString());
-            }
-
-            return value.Value;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ContainsKey(TKey key)
-        {
-            KeyValuePair<TKey, TValue> keyItem = new KeyValuePair<TKey, TValue>(key, default(TValue));
-            return TryGetValue(keyItem, out _);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            KeyValuePair<TKey, TValue> keyItem = new KeyValuePair<TKey, TValue>(key, default(TValue));
-            if(TryGetValue(keyItem, out KeyValuePair<TKey, TValue> keyAndValue))
-            {
-                value = keyAndValue.Value;
-                return true;
-            }
-
-            value = default(TValue);
-            return false;
+            HashCodeFunction = item => hashCodeFunction.Invoke(item.Key);
         }
     }
+
+    public LargeDictionary(IEnumerable<KeyValuePair<TKey, TValue>> items,
+        Func<TKey, TKey, bool> keyEqualsFunction = null,
+        Func<TKey, int> hashCodeFunction = null,
+        long capacity = 1L,
+        double capacityGrowFactor = Constants.DefaultCapacityGrowFactor,
+        long fixedCapacityGrowAmount = Constants.DefaultFixedCapacityGrowAmount,
+        long fixedCapacityGrowLimit = Constants.DefaultFixedCapacityGrowLimit,
+        double minLoadFactor = Constants.DefaultMinLoadFactor,
+        double maxLoadFactor = Constants.DefaultMaxLoadFactor,
+        double minLoadFactorTolerance = Constants.DefaultMinLoadFactorTolerance)
+
+        : this(keyEqualsFunction,
+              hashCodeFunction,
+              capacity,
+              capacityGrowFactor,
+              fixedCapacityGrowAmount,
+              fixedCapacityGrowLimit,
+              minLoadFactor,
+              maxLoadFactor,
+              minLoadFactorTolerance)
+    {
+        Add(items);
+    }
+
+    public IEnumerable<TKey> Keys
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            long capacity = Capacity;
+
+            for (long i = 0L; i < capacity; i++)
+            {
+                SetElement element = _Storage[i];
+
+                while (element != null)
+                {
+                    TKey key = element.Item.Key;
+                    yield return key;
+                    element = element.NextElement;
+                }
+            }
+        }
+    }
+
+    public IEnumerable<TValue> Values
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            long capacity = Capacity;
+
+            for (long i = 0L; i < capacity; i++)
+            {
+                SetElement element = _Storage[i];
+
+                while (element != null)
+                {
+                    TValue value = element.Item.Value;
+                    yield return value;
+                    element = element.NextElement;
+                }
+            }
+        }
+    }
+
+    TValue IReadOnlyLargeDictionary<TKey, TValue>.this[TKey key]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Get(key);
+    }
+
+    public TValue this[TKey key]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Get(key);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Set(key, value);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(TKey key, TValue value)
+    {
+        Add(new KeyValuePair<TKey, TValue>(key, value));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Remove(TKey key)
+    {
+        Remove(new KeyValuePair<TKey, TValue>(key, default));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Remove(IEnumerable<TKey> keys)
+    {
+        foreach (TKey key in keys)
+        {
+            Remove(key);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public TValue Get(TKey key)
+    {
+        KeyValuePair<TKey, TValue> keyItem = new(key, default);
+        if (!TryGetValue(keyItem, out KeyValuePair<TKey, TValue> value))
+        {
+            throw new KeyNotFoundException();
+        }
+
+        return value.Value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ContainsKey(TKey key)
+    {
+        KeyValuePair<TKey, TValue> keyItem = new(key, default);
+        bool result = TryGetValue(keyItem, out _);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public override bool Contains(KeyValuePair<TKey, TValue> item)
+    {
+        if (!TryGetValue(item.Key, out TValue value))
+        {
+            return false;
+        }
+
+        bool result = LargeSet<TValue>.DefaultEqualsFunction(item.Value, value);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetValue(TKey key, out TValue value)
+    {
+        KeyValuePair<TKey, TValue> keyItem = new(key, default);
+        if (TryGetValue(keyItem, out KeyValuePair<TKey, TValue> keyAndValue))
+        {
+            value = keyAndValue.Value;
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+
 }

@@ -23,48 +23,45 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
 using System.Collections.Generic;
-using System.Text;
 
-namespace LargeCollections
+namespace LargeCollections;
+
+public interface IDiskCache<TKey, TValue> : ILargeDictionary<TKey, TValue>
 {
-    public interface IDiskCache<TKey, TValue> : ILargeDictionary<TKey, TValue>
-    {
-        /// <summary>
-        /// Maximum amount of memory (RAM) in MB that will be used.
-        /// Any memory requirement that exceeds this is automatically swapped out to disk.
-        /// The specified maximum may be exceeded by some percentage.
-        /// </summary>
-        long MaxMemorySize { get; }
+    /// <summary>
+    /// Maximum amount of memory (RAM) in MB that will be used.
+    /// Any memory requirement that exceeds this is automatically swapped out to disk.
+    /// The specified maximum may be exceeded by some percentage.
+    /// </summary>
+    long MaxMemorySize { get; }
 
-        /// <summary>
-        /// Number of Threads that will be used.
-        /// It must be greater than 0.
-        /// </summary>
-        byte DegreeOfParallelism { get; }
+    /// <summary>
+    /// Number of Threads that will be used.
+    /// It must be greater than 0.
+    /// </summary>
+    byte DegreeOfParallelism { get; }
 
-        void AddParallel(IEnumerable<KeyValuePair<TKey, TValue>>[] parallelItems);
+    void AddParallel(IEnumerable<KeyValuePair<TKey, TValue>>[] parallelItems);
 
-        IEnumerable<KeyValuePair<TKey, TValue>>[] GetAllParallel();
+    IEnumerable<KeyValuePair<TKey, TValue>>[] GetAllParallel();
 
-        void RemoveParallel(IEnumerable<TKey>[] parallelKeys);
+    void RemoveParallel(IEnumerable<TKey>[] parallelKeys);
 
-        void RemoveParallel(IEnumerable<KeyValuePair<TKey, TValue>>[] parallelItems);
-    }
+    void RemoveParallel(IEnumerable<KeyValuePair<TKey, TValue>>[] parallelItems);
+}
 
-    public interface ISpatialDiskCache<TValue> : IDiskCache<long, TValue>
-    {
-        void Add(KeyValuePair<long, TValue> item, BoundingBox boundingBox);
+public interface ISpatialDiskCache<TValue> : IDiskCache<long, TValue>
+{
+    void Add(KeyValuePair<long, TValue> item, BoundingBox boundingBox);
 
-        void Add(IEnumerable<(KeyValuePair<long, TValue>, BoundingBox boundingBox)> items);
+    void Add(IEnumerable<(KeyValuePair<long, TValue>, BoundingBox boundingBox)> items);
 
-        void AddParallel(IEnumerable<(KeyValuePair<long, TValue> item, BoundingBox boundingBox)>[] parallelItems);
+    void AddParallel(IEnumerable<(KeyValuePair<long, TValue> item, BoundingBox boundingBox)>[] parallelItems);
 
-        IEnumerable<KeyValuePair<long, TValue>> Query(BoundingBox boundingBox);
+    IEnumerable<KeyValuePair<long, TValue>> Query(BoundingBox boundingBox);
 
-        IEnumerable<KeyValuePair<long, TValue>>[] QueryParallel(BoundingBox boundingBox);
+    IEnumerable<KeyValuePair<long, TValue>>[] QueryParallel(BoundingBox boundingBox);
 
-        void Set(long key, TValue value, BoundingBox boundingBox);
-    }
+    void Set(long key, TValue value, BoundingBox boundingBox);
 }

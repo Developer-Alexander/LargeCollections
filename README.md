@@ -1,25 +1,15 @@
 # What is LargeCollections?
 
-LargeCollections is a library for .NET framework that offers a number of interfaces and types for collections that can store up to 4607183514018775041 items.
+LargeCollections is a library for .NET framework that offers a number of interfaces and types for collections that can store up to 1152921504606846976 items.
 In comparison many .NET standard collections are limited to about 2.1 billion items.
-There are also thread-safe (concurrent) variants of the corresponding collection types.
 
 Currently supported collections are:
 - LargeArray<T>
 - LargeList<T>
 - LargeSet<T>
 - LargeDictionary<TKey, TValue>
-- ReadOnlyLargeSpan<T>
-- LargeSpan<T>
-- ConcurrentLargeArray<T>
-- ConcurrentLargeList<T>
-- ConcurrentLargeSet<T>
-- ConcurrentLargeDictionary<TKey, TValue>
 - DiskCache<TKey, TValue>
 - SpatialDiskCache<long, TValue>
-
-ReadOnlyLargeSpan<T> provides a readonly access to a segment of an IReadOnlyLargeArray<T>.
-LargeSpan<T> provides access to a segment of an ILargeArray<T>.
 
 DiskCache<TKey, TValue> is a dictionary-like collection that allows to limit the amount of memory (RAM) in MB that will be used.
 Any memory requirement that exceeds this amount is automatically swapped out to disk. 
@@ -27,8 +17,8 @@ Additionally it offers multi-threaded operations for performance improvements.
 
 SpatialDiskCache<long, TValue> is a DiskCache<long, TValue> that allows to create a spatial index for the contained elements that can be used for spatial queries.
 
-Since many .NET API are designed to work with Streams the LargeMemoryStream implements a Stream based on a LargeArray<byte>.
-It extends on demand when writing to it. Additionally it supports reading and writing operations at the same time.
+Since many .NET API are designed to work with Streams the LargeWritableMemoryStream implements a thin Stream API wrapper around a LargeList<byte>.
+On the other side LargeReadableMemoryStream implements a thin readonly Stream API wrapper around a IReadOnlyLargeArray<byte>.
 
 # License
 

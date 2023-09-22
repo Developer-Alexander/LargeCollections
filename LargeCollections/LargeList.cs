@@ -23,404 +23,475 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace LargeCollections
+namespace LargeCollections;
+
+/// <summary>
+/// A mutable list of <typeparamref name="T"/> that can store up to <see cref="Constants.MaxLargeCollectionCount"/> elements.
+/// Lists allow index based access to the elements.
+/// </summary>
+[DebuggerDisplay("LargeList: Count = {Count}")]
+public class LargeList<T> : ILargeList<T>
 {
-    /// <summary>
-    /// A mutable list of <typeparamref name="T"/> that can store up to <see cref="LargeCollectionsConstants.MaxLargeCollectionCount"/> elements.
-    /// Lists allow index based access to the elements.
-    /// </summary>
-    [DebuggerDisplay("LargeList: Count = {Count}")]
-    public class LargeList<T> : ILargeList<T>
+    private T[][] _Storage;
+    public double CapacityGrowFactor
     {
-        protected static readonly Comparer<T> _comparer = Comparer<T>.Default;
-
-        protected readonly LargeArray<T> _storage;
-        public double CapacityGrowFactor 
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set;
-        }
-
-        public long FixedCapacityGrowAmount 
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set;
-        }
-
-        public long FixedCapacityGrowLimit 
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set;
-        }
-
-        public long Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set;
-        }
-
-        public long Capacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _storage.Count;
-        }
-
-        public LargeList(long capacity = 1L,
-            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
-            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
-            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
-        {
-            if (capacity < 0L || capacity > LargeCollectionsConstants.MaxLargeCollectionCount)
-            {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
-            }
-            if(capacityGrowFactor <= 1.0 || capacityGrowFactor > LargeCollectionsConstants.MaxCapacityGrowFactor)
-            {
-                throw new ArgumentOutOfRangeException(nameof(capacityGrowFactor));
-            }
-            if (fixedCapacityGrowAmount < 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(fixedCapacityGrowAmount));
-            }
-            if (fixedCapacityGrowLimit < 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(fixedCapacityGrowLimit));
-            }
-
-            _storage = new LargeArray<T>(capacity);
-
-            Count = 0L;
-
-            CapacityGrowFactor = capacityGrowFactor;
-
-            FixedCapacityGrowAmount = fixedCapacityGrowAmount;
-
-            FixedCapacityGrowLimit = fixedCapacityGrowLimit;
-        }
-
-        public LargeList(IEnumerable<T> items,
-            long capacity = 1L,
-            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor,
-            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount,
-            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
-            
-            :this(capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit)
-        {
-            Add(items);
-        }
-
-        public T this[long index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(index);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => Set(index, value);
-        }
-
-        T IReadOnlyLargeArray<T>.this[long index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(index);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(T item)
+        get;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private set;
+    }
+
+    public long FixedCapacityGrowAmount
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private set;
+    }
+
+    public long FixedCapacityGrowLimit
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private set;
+    }
+
+    public long Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private set;
+    }
+
+    public long Capacity
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private set;
+    }
+
+    public LargeList(long capacity = 1L,
+        double capacityGrowFactor = Constants.DefaultCapacityGrowFactor,
+        long fixedCapacityGrowAmount = Constants.DefaultFixedCapacityGrowAmount,
+        long fixedCapacityGrowLimit = Constants.DefaultFixedCapacityGrowLimit)
+    {
+        if (capacityGrowFactor <= 1.0 || capacityGrowFactor > Constants.MaxCapacityGrowFactor)
         {
-            if (Count == LargeCollectionsConstants.MaxLargeCollectionCount)
-            {
-                throw new InvalidOperationException($"Can not store more than {LargeCollectionsConstants.MaxLargeCollectionCount} items.");
-            }
-
-            if (Count >= Capacity)
-            {
-                long newCapacity = GetGrownCapacity(Capacity, CapacityGrowFactor, FixedCapacityGrowAmount, FixedCapacityGrowLimit);
-
-                _storage.Resize(newCapacity);
-            }
-
-            _storage[Count] = item;
-            Count++;
+            throw new ArgumentOutOfRangeException(nameof(capacityGrowFactor));
+        }
+        if (fixedCapacityGrowAmount < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fixedCapacityGrowAmount));
+        }
+        if (fixedCapacityGrowLimit < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fixedCapacityGrowLimit));
         }
 
+        _Storage = StorageExtensions.StorageCreate<T>(capacity);
+        Count = 0L;
+        Capacity = capacity;
 
+        CapacityGrowFactor = capacityGrowFactor;
+
+        FixedCapacityGrowAmount = fixedCapacityGrowAmount;
+
+        FixedCapacityGrowLimit = fixedCapacityGrowLimit;
+    }
+
+    public LargeList(IEnumerable<T> items,
+        long capacity = 1L,
+        double capacityGrowFactor = Constants.DefaultCapacityGrowFactor,
+        long fixedCapacityGrowAmount = Constants.DefaultFixedCapacityGrowAmount,
+        long fixedCapacityGrowLimit = Constants.DefaultFixedCapacityGrowLimit)
+
+        : this(capacity, capacityGrowFactor, fixedCapacityGrowAmount, fixedCapacityGrowLimit)
+    {
+        Add(items);
+    }
+
+    public T this[long index]
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(IEnumerable<T> items)
+        get
         {
-            foreach (T item in items)
-            {
-                Add(item);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Clear()
-        {
-            for (long i = 0L; i < Count; i++)
-            {
-                _storage[i] = default(T);
-            }
-
-            Count = 0L;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Contains(T item)
-        {
-            return _storage.Contains(item, 0L, Count);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Contains(T item, long offset, long count)
-        {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            return _storage.Contains(item, offset, count);
-
+            StorageExtensions.CheckIndex(index, Count);
+            T result = _Storage.StorageGet(index);
+            return result;
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Get(long index)
+        set
         {
-            if (index < 0L || index >= Count)
-            {
-                throw new IndexOutOfRangeException(nameof(index));
-            }
+            StorageExtensions.CheckIndex(index, Count);
+            _Storage.StorageSet(index, value);
+        }
+    }
 
-            return _storage[index];
+    T IReadOnlyLargeArray<T>.this[long index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            StorageExtensions.CheckIndex(index, Count);
+            T result = _Storage.StorageGet(index);
+            return result;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(T item)
+    {
+        if (Count >= Constants.MaxLargeCollectionCount)
+        {
+            throw new InvalidOperationException($"Can not store more than {Constants.MaxLargeCollectionCount} items.");
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public IEnumerable<T> GetAll()
+        EnsureRemainingCapacity(1L);
+        _Storage.StorageSet(Count, item);
+        Count++;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(IEnumerable<T> items)
+    {
+        if (items == null)
         {
-            for (long i = 0L; i < Count; i++)
-            {
-                yield return _storage[i];
-            }
+            throw new ArgumentNullException(nameof(items));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public IEnumerable<T> GetAll(long offset, long count)
+        foreach (T item in items)
         {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
+            Add(item);
+        }
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(IReadOnlyLargeArray<T> source, long offset, long count)
+    {
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (Count + count >= Constants.MaxLargeCollectionCount)
+        {
+            throw new InvalidOperationException($"Can not store more than {Constants.MaxLargeCollectionCount} items.");
+        }
+
+        StorageExtensions.CheckRange(offset, count, source.Count);
+
+        EnsureRemainingCapacity(count);
+
+        if (source is LargeArray<T> largeArraySource)
+        {
+            T[][] sourceStorage = largeArraySource.GetStorage();
+            _Storage.StorageCopyTo(sourceStorage, offset, Count, count);
+        }
+        else if (source is LargeList<T> largeListSource)
+        {
+            T[][] sourceStorage = largeListSource.GetStorage();
+            _Storage.StorageCopyFrom(sourceStorage, offset, Count, count);
+        }
+        else
+        {
             for (long i = 0L; i < count; i++)
             {
-                yield return _storage[offset + i];
+                T item = source[offset + i];
+                _Storage.StorageSet(Count + i, item);
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Remove(T item)
-        {
-            long shiftCount = 0L;
+        Count += count;
+    }
 
-            for (long i = 0L; i < Count; i++)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(ReadOnlySpan<T> source)
+    {
+        long count = source.Length;
+        if (Count + count >= Constants.MaxLargeCollectionCount)
+        {
+            throw new InvalidOperationException($"Can not store more than {Constants.MaxLargeCollectionCount} items.");
+        }
+
+        EnsureRemainingCapacity(count);
+
+        _Storage.StorageCopyFrom(source, Count, count);
+        Count += count;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Clear()
+    {
+        Resize(1L);
+        Count = 0L;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Contains(T item)
+    {
+        bool result = _Storage.Contains(item, 0L, Count, LargeSet<T>.DefaultEqualsFunction);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Contains(T item, long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+
+        if (count == 0L)
+        {
+            return false;
+        }
+
+        bool result = _Storage.Contains(item, offset, count, LargeSet<T>.DefaultEqualsFunction);
+        return result;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void CopyTo(ILargeArray<T> target, long sourceOffset, long targetOffset, long count)
+    {
+        StorageExtensions.CheckRange(sourceOffset, count, Count);
+        StorageExtensions.CheckRange(targetOffset, count, target.Count);
+
+        if (target is LargeArray<T> largeArrayTarget)
+        {
+            T[][] targetStorage = largeArrayTarget.GetStorage();
+            _Storage.StorageCopyTo(targetStorage, sourceOffset, targetOffset, count);
+        }
+        else if (target is LargeList<T> largeListTarget)
+        {
+            T[][] targetStorage = largeListTarget.GetStorage();
+            _Storage.StorageCopyTo(targetStorage, sourceOffset, targetOffset, count);
+        }
+        else
+        {
+            for (long i = 0L; i < count; i++)
             {
-                if (_comparer.Compare(_storage[i], item) == 0 && shiftCount == 0)
-                {
-                    shiftCount++;
-                }
-                else if(shiftCount > 0L)
-                {
-                    _storage[i - shiftCount] = _storage[i];
-                }
+                T item = _Storage.StorageGet(sourceOffset + i);
+                target[targetOffset + i] = item;
             }
         }
+    }
 
-        public void Remove(IEnumerable<T> items)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void CopyTo(Span<T> target, long sourceOffset, long count)
+    {
+        StorageExtensions.CheckRange(sourceOffset, count, Count);
+
+        _Storage.StorageCopyTo(target, sourceOffset, count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T Get(long index)
+    {
+        StorageExtensions.CheckIndex(index, Count);
+        T result = _Storage.StorageGet(index);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public IEnumerable<T> GetAll()
+    {
+        foreach (T item in _Storage.StorageGetAll(0L, Count))
         {
-            foreach (T item in items)
+            yield return item;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public IEnumerable<T> GetAll(long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+
+        foreach (T item in _Storage.StorageGetAll(offset, count))
+        {
+            yield return item;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Remove(T item)
+    {
+        for (long i = 0L; i < Count; i++)
+        {
+            T currentItem = _Storage.StorageGet(i);
+            if (LargeSet<T>.DefaultEqualsFunction(item, currentItem))
             {
-                Remove(item);
+                RemoveAt(i);
+                break;
             }
         }
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveAt(long index)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Remove(IEnumerable<T> items)
+    {
+        foreach (T item in items)
         {
-            if (index < 0L || index >= Count)
-            {
-                throw new IndexOutOfRangeException(nameof(index));
-            }
+            Remove(item);
+        }
+    }
 
-            for (long i = index; i < Count - 1L; i++)
-            {
-                _storage[i] = _storage[i + 1L];
-            }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RemoveAt(long index)
+    {
+        StorageExtensions.CheckIndex(index, Count);
 
-            _storage[Count - 1L] = default(T);
-            Count--;
+        for (long i = index; i < Count - 1L; i++)
+        {
+            T item = _Storage.StorageGet(i + 1L);
+            _Storage.StorageSet(i, item);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Set(long index, T item)
-        {
-            if (index < 0L || index >= Count)
-            {
-                throw new IndexOutOfRangeException(nameof(index));
-            }
+        _Storage.StorageSet(Count - 1L, default);
+        Count--;
+    }
 
-            _storage[index] = item;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(long index, T item)
+    {
+        StorageExtensions.CheckIndex(index, Count);
+        _Storage.StorageSet(index, item);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Shrink()
+    {
+        Resize(Count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public IEnumerator<T> GetEnumerator()
+    {
+        return GetAll().GetEnumerator();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetAll().GetEnumerator();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoForEach(Action<T> action)
+    {
+        _Storage.StorageDoForEach((ref T item) => action.Invoke(item), 0L, Count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoForEach(Action<T> action, long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+        _Storage.StorageDoForEach((ref T item) => action.Invoke(item), offset, count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoForEach(RefAction<T> action)
+    {
+        _Storage.StorageDoForEach(action, 0L, Count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DoForEach(RefAction<T> action, long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+        _Storage.StorageDoForEach(action, offset, count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Sort(Func<T, T, int> comparer)
+    {
+        comparer ??= LargeArray<T>.DefaultComparer;
+        _Storage.StorageSort(comparer, 0L, Count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Sort(Func<T, T, int> comparer, long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+        comparer ??= LargeArray<T>.DefaultComparer;
+        _Storage.StorageSort(comparer, offset, count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public long BinarySearch(T item, Func<T, T, int> comparer)
+    {
+        comparer ??= LargeArray<T>.DefaultComparer;
+        long result = _Storage.StorageBinarySearch(item, comparer, 0L, Count);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public long BinarySearch(T item, Func<T, T, int> comparer, long offset, long count)
+    {
+        StorageExtensions.CheckRange(offset, count, Count);
+        comparer ??= LargeArray<T>.DefaultComparer;
+        long result = _Storage.StorageBinarySearch(item, comparer, offset, count);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Swap(long leftIndex, long rightIndex)
+    {
+        StorageExtensions.CheckIndex(leftIndex, Count);
+        StorageExtensions.CheckIndex(rightIndex, Count);
+        _Storage.StorageSwap(leftIndex, rightIndex);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal T[][] GetStorage()
+    {
+        T[][] result = _Storage;
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EnsureCapacity(long targetCapacity)
+    {
+        if (targetCapacity < 0L || targetCapacity > Constants.MaxLargeCollectionCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetCapacity));
+        }
+        if (Capacity >= targetCapacity)
+        {
+            return;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Shrink()
+        long newCapacity = Capacity;
+
+        while (newCapacity < targetCapacity)
         {
-            _storage.Resize(Count);
+            newCapacity = StorageExtensions.GetGrownCapacity(newCapacity, CapacityGrowFactor, FixedCapacityGrowAmount, FixedCapacityGrowLimit);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public IEnumerator<T> GetEnumerator()
+        if (newCapacity > Constants.MaxLargeCollectionCount)
         {
-            return GetAll().GetEnumerator();
+            newCapacity = Constants.MaxLargeCollectionCount;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetAll().GetEnumerator();
-        }
+        Resize(newCapacity);
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long GetGrownCapacity(long capacity, 
-            double capacityGrowFactor = LargeCollectionsConstants.DefaultCapacityGrowFactor, 
-            long fixedCapacityGrowAmount = LargeCollectionsConstants.DefaultFixedCapacityGrowAmount, 
-            long fixedCapacityGrowLimit = LargeCollectionsConstants.DefaultFixedCapacityGrowLimit)
-        {
-            long newCapacity;
-            try
-            {
-                if (capacity >= fixedCapacityGrowLimit)
-                {
-                    newCapacity = capacity + fixedCapacityGrowAmount;
-                    newCapacity = newCapacity <= LargeCollectionsConstants.MaxLargeCollectionCount ? newCapacity : LargeCollectionsConstants.MaxLargeCollectionCount;
-                }
-                else
-                {
-                    newCapacity = (long)(capacity * capacityGrowFactor) + 1L;
-                    newCapacity = newCapacity <= LargeCollectionsConstants.MaxLargeCollectionCount ? newCapacity : LargeCollectionsConstants.MaxLargeCollectionCount;
-                }
-            }
-            catch
-            {
-                newCapacity = LargeCollectionsConstants.MaxLargeCollectionCount;
-            }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EnsureRemainingCapacity(long capacity)
+    {
+        long newCapacity = Count + capacity;
+        EnsureCapacity(newCapacity);
+    }
 
-            return newCapacity;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DoForEach(Action<T> action)
-        {
-            _storage.DoForEach(0L, Count, action);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DoForEach(long offset, long count, Action<T> action)
-        {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            _storage.DoForEach(offset, count, action);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(Comparer<T> comparer = null)
-        {
-            _storage.Sort(0L, Count, comparer);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Sort(long offset, long count, Comparer<T> comparer = null)
-        {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            _storage.Sort(offset, count, comparer);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long BinarySearch(T item, Comparer<T> comparer = null)
-        {
-            return _storage.BinarySearch(item, 0L, Count, comparer);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long BinarySearch(T item, long offset, long count, Comparer<T> comparer)
-        {
-            if (offset < 0L || count < 0L || offset + count > Count)
-            {
-                throw new ArgumentException("offset < 0L || count < 0L || offset + count > Count");
-            }
-
-            return _storage.BinarySearch(item, offset, count, comparer);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(IReadOnlyLargeArray<T> source, long count, long targetOffset = 0L, long sourceOffset = 0L)
-        {
-            if (targetOffset + count > Count)
-            {
-                throw new ArgumentException("targetOffset + count > Count");
-            }
-
-            _storage.CopyFrom(source, count, targetOffset, sourceOffset);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(T[] source, int count, long targetOffset = 0L, int sourceOffset = 0)
-        {
-            if (targetOffset + count > Count)
-            {
-                throw new ArgumentException("targetOffset + count > Count");
-            }
-
-            _storage.CopyFrom(source, count, targetOffset, sourceOffset);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(ILargeArray<T> target, long count, long sourceOffset = 0L, long targetOffset = 0L)
-        {
-            if (sourceOffset + count > Count)
-            {
-                throw new ArgumentException("sourceOffset + count > Count");
-            }
-
-            _storage.CopyTo(target, count, sourceOffset, targetOffset);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(T[] target, int count, long sourceOffset = 0L, int targetOffset = 0)
-        {
-            if (sourceOffset + count > Count)
-            {
-                throw new ArgumentException("sourceOffset + count > Count");
-            }
-
-            _storage.CopyTo(target, count, sourceOffset, targetOffset);
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void Resize(long capacity)
+    {
+        _Storage = _Storage.StorageResize(capacity);
+        Capacity = capacity;
     }
 }

@@ -23,60 +23,55 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 
-namespace LargeCollections
+namespace LargeCollections;
+
+public class LargeEnumerable
 {
-    public class LargeEnumerable
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IEnumerable<long> Range(long start, long end, long step = 1L)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IEnumerable<long> Range(long start, long end, long step = 1L)
+        if (step == 0L)
         {
-            if(step == 0L)
-            {
-                yield break;
-            }
-            if(step > 0L)
-            {
-                for (long i = start; i < end; i += step)
-                {
-                    yield return i;
-                }
-            }
-            else
-            {
-                for (long i = start; i > end; i += step)
-                {
-                    yield return i;
-                }
-            }
+            yield break;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IEnumerable<long> Range(long end)
+        if (step > 0L)
         {
-            for (long i = 0L; i < end; i++)
+            for (long i = start; i < end; i += step)
             {
                 yield return i;
             }
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static IEnumerable<T> Repeat<T>(T item, long count)
+        else
         {
-            if(count <= 0L)
+            for (long i = start; i > end; i += step)
             {
-                yield break;
+                yield return i;
             }
+        }
+    }
 
-            for (long i = 0L; i < count; i++)
-            {
-                yield return item;
-            }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IEnumerable<long> Range(long end)
+    {
+        for (long i = 0L; i < end; i++)
+        {
+            yield return i;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IEnumerable<T> Repeat<T>(T item, long count)
+    {
+        if (count <= 0L)
+        {
+            yield break;
+        }
+
+        for (long i = 0L; i < count; i++)
+        {
+            yield return item;
         }
     }
 }
